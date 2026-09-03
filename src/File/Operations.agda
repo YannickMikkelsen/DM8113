@@ -3,9 +3,13 @@ module File.Operations where
 open import File.States
 open import Data.Unit using (⊤)
 open import Data.Char using (Char)
+open import Data.Maybe
 
-data FileOp : FileState → FileState → Set → Set where
-  Open : FileOp Closed Open ⊤
-  Close : FileOp Open Closed ⊤
-  Read : FileOp Open Open Char
-  Write : Char → FileOp Open Open ⊤
+
+data FileOp : State → State → Set → Set where
+  fOpen : FileOp Closed State ⊤
+  fClose : FileOp Open Closed ⊤
+  fGetC : FileOp Open Open (Maybe Char)
+  -- fWrite : Char → FileOp Open Open ⊤
+
+

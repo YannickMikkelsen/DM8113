@@ -1,5 +1,15 @@
 module File.States where
 
-data FileState : Set where
-  Closed : FileState
-  Open : FileState
+data State : Set where
+  Open   : State
+  Closed : State
+
+
+data SState : State → Set where
+  sOpen   : SState Open
+  sClosed : SState Closed
+
+  
+
+
+
