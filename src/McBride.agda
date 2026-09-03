@@ -49,9 +49,11 @@ data _:+:_ {I : Set} (F G : Pred I → Pred I) (P : Pred I) : Pred I where
   InL : ∀ {i} → F P i → (F :+: G) P i
   InR : ∀ {i} → G P i → (F :+: G) P i
 
+FilePath : Set
+FilePath = String
 
 FH : Pred State → Pred State
-FH = ((String := Closed) :>>: SState)
+FH = ((FilePath := Closed) :>>: SState)
   :+: (((⊤ := Open) :>>: ((Maybe Char) := Open))
   :+: ((⊤ := Open) :>>: (⊤ := Closed)))
 
@@ -64,5 +66,35 @@ data _:*_ {I : Set} (F : Pred I → Pred I)(P : Pred I) : Pred I where
 
 
 
+pattern FOpen p k = Do (InL (V p :& k))
+pattern FGetC k = Do (InR (InL (V tt :& k)))
+pattern FClose k = Do (InR (InR (V tt :& k)))
 
+
+fOpen : FilePath → (FH :* SState) Closed
+fOpen p = FOpen p Ret
+
+fGetC : (FH :* ((Maybe Char) := Open)) Open
+fGetC = FGetC Ret
+
+fClose : (FH :* (⊤ := Closed)) Open
+fClose = FClose Ret
+
+
+data LSState : Set where
+  s : LSState
+
+LS : Pred LSState → Pred LSState
+LS = ((⊤ := s) :>>: (String := s))
+     :+: ((String := s) :>>: (⊤ := s))
+
+pattern PLook k = Do (InL (V tt :& k))
+pattern PSet x k = Do (InR (V x :& k))
+
+
+look : (LS :* (String := s)) s
+look = PLook Ret
+
+set : String → (LS :* (⊤ := s)) s
+set x = PSet x Ret
 
