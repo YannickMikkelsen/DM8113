@@ -14,7 +14,8 @@ data State : Set where
   s   : State
 
 -- data SState : State → Set where
---   sOpen   : SState Open
+--   sOpen   :
+  --  SState Open
 --   sClosed : SState Closed
 
 Val : Set
@@ -23,7 +24,6 @@ Val = String
 LS : Pred State → Pred State
 LS = ((⊤ := s) :>>: (Val := s)) :+: --look
  ((Val := s) :>>: (⊤ := s)) --set
-
 
 -- LS-IFunctor : IFunctor LS
 -- LS-IFunctor .imap x (InL x₁) = InL (x₁ .pi :& (λ {i = i₁} z → x (x₁ .k z)))
@@ -40,29 +40,3 @@ set p = FSet p Ret
 
 
 
-
--- record LookSetTheory {I : Set} (M : Pred I → Pred I) (s : I) (Val : Set) : Set₁ where
---   field
---     isMonad : IMonad M
-
---   open IMonad isMonad public
-
---   field
---     look' : M (Val := s) s
---     set'  : Val → M (⊤ := s) s
-
---     law-read-skip
---       : ∀ {Q : Pred I} (v : M Q s)
---       → iextend isMonad {!   !} look' ≡ v
-
---     law-read-write-same
---       : ∀ {Q : Pred I} (k : Val → M Q s)
---       → {!   !}
-
---     law-read-read
---       : ∀ {Q : Pred I} (k : Val → Val → M Q s)
---       → {!   !}
-
---     law-write-read
---       : ∀ {Q : Pred I} (k : Val → M Q s) (y : Val)
---       → {!   !}

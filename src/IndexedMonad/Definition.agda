@@ -11,13 +11,29 @@ record IxMonad {I : Set} {M : I → I → Set → Set} : Set₁ where
     pure : ∀ {i} {A : Set} → A → M i i A
     _>>=_ : ∀ {i j k} {A B : Set} → M i j A → (A → M j k B) → M i k B
 
-
 Pred : Set → Set₁
 Pred I = I → Set
 
  
 _:→_ : ∀ {I : Set} → (Pred I) → (Pred I) → Set
 s :→ t = ∀ {i} → s i → t i
+
+record IFunctor {I : Set} (F : Pred I → Pred I) : Set₁ where
+  field
+    imap    : ∀ {s t} → (s :→ t) → ((F s) :→ (F t))
+    -- imap-id : ∀ {P : Pred I} {i : I} (x : F P i)
+    --         → imap {P} {P} idP x ≡ x
+    -- imap-∘  : ∀ {P Q R : Pred I} (g : Q :→ R) (f : P :→ Q) {i : I} (x : F P i)
+    --         → imap {Q} {R} g (imap {P} {Q} f x) ≡ imap {P} {R} (composeP g f) x
+
+record IMonad {I : Set} (M : Pred I → Pred I) : Set₁ where
+  field
+    iskip      : ∀ {P : Pred I} → P :→ M P
+    iextend    : ∀ {P Q : Pred I} → (P :→ M Q) → (M P :→ M Q)
+
+
+
+
 
 
 record _:>>:_ {I : Set} (P Q : Pred I) (R : Pred I) (i : I) : Set where
@@ -37,14 +53,6 @@ idP {P} {i} x = x
 composeP : ∀ {I} {P Q R : Pred I} → (Q :→ R) → (P :→ Q) → (P :→ R)
 composeP g f {i} x = g (f x)
 
-
-record IFunctor {I : Set} (F : Pred I → Pred I) : Set₁ where
-  field
-    imap    : ∀ {s t} → (s :→ t) → ((F s) :→ (F t))
-    -- imap-id : ∀ {P : Pred I} {i : I} (x : F P i)
-    --         → imap {P} {P} idP x ≡ x
-    -- imap-∘  : ∀ {P Q R : Pred I} (g : Q :→ R) (f : P :→ Q) {i : I} (x : F P i)
-    --         → imap {Q} {R} g (imap {P} {Q} f x) ≡ imap {P} {R} (composeP g f) x
 
 
 open IFunctor public
@@ -66,12 +74,6 @@ data _:=_ {X : Set} (A : Set) (k : X) : X → Set where
 data :∗ {I : Set} (F : Pred I → Pred I) (P : Pred I) (i : I) : Set where
   Ret : P i → :∗ F P i
   Do  : F (:∗ F P) i → :∗ F P i
-
-
-record IMonad {I : Set} (M : Pred I → Pred I) : Set₁ where
-  field
-    iskip      : ∀ {P : Pred I} → P :→ M P
-    iextend    : ∀ {P Q : Pred I} → (P :→ M Q) → (M P :→ M Q)
 
 open IMonad public
 open IFunctor public
