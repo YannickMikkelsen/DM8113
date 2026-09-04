@@ -2,6 +2,7 @@ module McBride where
 
 
 open import Data.Unit using (⊤; tt)
+open import Data.Empty using (⊥)
 open import Data.Char using (Char)
 open import Data.Bool using (Bool; true; false)
 open import Data.Maybe using (Maybe; just; nothing)
@@ -35,9 +36,9 @@ record IFunctor {I O : Set} (F : Pred I → Pred O) : Set₁ where
 
 record IMonad {I : Set} (M : Pred I → Pred I) : Set₁ where
   field
-    imap : ∀ {s t} → (s :→ t) → (M s :→ M t)
-    iskip : ∀ {p} → p :→ M p
-    iextend : ∀ {p q} → (p :→ M q) → (M p :→ M q)
+    imap : ∀ {s t} → (s :→ t) → (M s :→ M t) -- Functor Map
+    iskip : ∀ {p} → p :→ M p -- Return/Pure
+    iextend : ∀ {p q} → (p :→ M q) → (M p :→ M q) -- Bind
 
 -- Binær
 data _:>>:_ {I : Set} (P Q : Pred I) (R : Pred I) : Pred I where
@@ -80,21 +81,42 @@ fGetC = FGetC Ret
 fClose : (FH :* (⊤ := Closed)) Open
 fClose = FClose Ret
 
+-- Look/Set Class
 
 data LSState : Set where
   s : LSState
 
-LS : Pred LSState → Pred LSState
-LS = ((⊤ := s) :>>: (String := s))
-     :+: ((String := s) :>>: (⊤ := s))
+LS : (I : Set) → Pred I → Pred I
+LS I P i = (((⊤ := i) :>>: (String := i))
+     :+: ((String := i) :>>: (⊤ := i))) P i
 
 pattern PLook k = Do (InL (V tt :& k))
 pattern PSet x k = Do (InR (V x :& k))
 
 
-look : (LS :* (String := s)) s
+look : ∀ {I : Set} {i : I} → (LS I :* (String := i)) i
 look = PLook Ret
 
-set : String → (LS :* (⊤ := s)) s
+set : ∀ {I : Set} {i : I} → String → (LS I :* (⊤ := i)) i
 set x = PSet x Ret
 
+-- Exception Class
+
+EXC : (I : Set) → Set → Pred I → Pred I
+EXC I E P i = (((E := i) :>>: (⊥ := i)) :+: ((⊤ := i) :>>: (E := i))) P i
+
+pattern PThrow e k = Do (InL (V e :& k))
+pattern PHandle k = Do (InR (V tt :& k))
+
+throw : ∀ {I E : Set} {i : I} → E → (EXC I E :* (⊥ := i)) i
+throw e = PThrow e Ret
+
+handle : ∀ {I E : Set} {i : I} → (EXC I E :* (E := i)) i
+handle = PHandle Ret
+
+
+
+-- Kombination af effekterne
+
+Combined : (S E : Set) → Pred S → Pred S
+Combined S E = LS S :+: (EXC S E)
