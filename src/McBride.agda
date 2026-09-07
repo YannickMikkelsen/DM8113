@@ -20,6 +20,7 @@ data SState : State → Set where
   sClosed : SState Closed
 
 infixr 0 _:→_
+infixl 4 _>>=_
 infixr 4 _:+:_
 
 _:→_ : {I : Set} → Pred I → Pred I → Set
@@ -115,8 +116,107 @@ handle : ∀ {I E : Set} {i : I} → (EXC I E :* (E := i)) i
 handle = PHandle Ret
 
 
-
 -- Kombination af effekterne
 
-Combined : (S E : Set) → Pred S → Pred S
-Combined S E = LS S :+: (EXC S E)
+CombinedOld : (S E : Set) → Pred S → Pred S
+CombinedOld S E = LS S :+: (EXC S E)
+
+Combined : Set → Pred State → Pred State
+Combined E = FH :+: (LS State :+: EXC State E)
+
+-- IFunctor
+
+IFunctor:>>: : ∀ {I : Set} {P Q : Pred I} → IFunctor ((P :>>: Q))
+IFunctor:>>: .IFunctor.imap f (p :& k) = p :& λ q → f (k q)
+
+IFunctor:+: : ∀ {I : Set} {F G : Pred I → Pred I} → IFunctor F → IFunctor G → IFunctor (F :+: G)
+IFunctor:+: iF iG .IFunctor.imap f (InL x) = InL (IFunctor.imap iF f x)
+IFunctor:+: iF iG .IFunctor.imap f (InR y) = InR (IFunctor.imap iG f y)
+
+
+
+IFunctorLS : ∀ {I : Set} → IFunctor (LS I)
+IFunctorLS .IFunctor.imap f (InL x) = InL (IFunctor.imap IFunctor:>>: f x)
+IFunctorLS .IFunctor.imap f (InR y) = InR (IFunctor.imap IFunctor:>>: f y)
+
+IFunctorEXC : ∀ {I E : Set} → IFunctor (EXC I E)
+IFunctorEXC .IFunctor.imap f (InL x) = InL (IFunctor.imap IFunctor:>>: f x)
+IFunctorEXC .IFunctor.imap f (InR y) = InR (IFunctor.imap IFunctor:>>: f y)
+
+IFunctorFH : IFunctor FH
+IFunctorFH = IFunctor:+: IFunctor:>>: (IFunctor:+: IFunctor:>>: IFunctor:>>:)
+
+instance
+  IFunctorCombinedOld : ∀ {S E : Set} → IFunctor (CombinedOld S E)
+  IFunctorCombinedOld .IFunctor.imap f (InL x) = InL (IFunctor.imap IFunctorLS f x)
+  IFunctorCombinedOld .IFunctor.imap f (InR y) = InR (IFunctor.imap IFunctorEXC f y)
+
+instance
+  IFunctorCombined : ∀ {E : Set} → IFunctor (Combined E)
+  IFunctorCombined = IFunctor:+: IFunctorFH (IFunctor:+: IFunctorLS IFunctorEXC)
+
+{-# TERMINATING #-}
+mapM : ∀ {I : Set} {F : Pred I → Pred I} → IFunctor F → ∀ {p q} → (p :→ q) → ((F :* p) :→ (F :* q))
+mapM iF f (Ret x) = Ret (f x)
+mapM iF f (Do x)  = Do (IFunctor.imap iF (mapM iF f) x)
+
+{-# TERMINATING #-}
+bindM : ∀ {I : Set} {F : Pred I → Pred I} → IFunctor F → ∀ {p q} → (p :→ (F :* q)) → ((F :* p) :→ (F :* q))
+bindM iF f (Ret x) = f x
+bindM iF f (Do x)  = Do (IFunctor.imap iF (bindM iF f) x)
+
+
+FreeIMonad : ∀ {I : Set} {F : Pred I → Pred I} → IFunctor F → IMonad (F :*_)
+FreeIMonad iF .IMonad.imap = mapM iF
+FreeIMonad iF .IMonad.iskip = Ret
+FreeIMonad iF .IMonad.iextend = bindM iF
+
+
+_>>=_ : ∀ {I : Set} {F : Pred I → Pred I} {p q : Pred I} {i : I} → {{iF : IFunctor F}} → (F :* p) i → (p :→ (F :* q)) → (F :* q) i
+
+_>>=_ {{iF = iF}} m f = IMonad.iextend (FreeIMonad iF) f m
+
+CombinedIMonad : ∀ {S E : Set} → IMonad ((Combined E) :*_)
+CombinedIMonad = FreeIMonad IFunctorCombined
+
+
+-- Constructors
+
+-- Look/Set
+lookC : ∀ {E : Set} {s : State} → ((Combined E) :* (String := s)) s
+lookC = Do (InR (InL (InL ((V tt) :& Ret))))
+
+setC : ∀ {E : Set} {s : State} → String → ((Combined E) :* (⊤ := s)) s
+setC x = Do (InR (InL (InR ((V x) :& Ret))))
+
+-- Expections
+throwC : ∀ {E : Set} {s : State} → E → ((Combined E) :* (⊥ := s)) s
+throwC e = Do (InR (InR (InL ((V e) :& Ret))))
+
+handleC : ∀ {E : Set} {s : State} → ((Combined E) :* (E := s)) s
+handleC = Do (InR (InR (InR ((V tt) :& Ret))))
+
+-- FileHandling
+
+openC : ∀ {E : Set} → FilePath → ((Combined E) :* SState) Closed
+openC p = Do (InL (InL ((V p) :& Ret)))
+
+getC : ∀ {E : Set} → ((Combined E) :* ((Maybe Char) := Open)) Open
+getC = Do (InL (InR (InL ((V tt) :& Ret))))
+
+closeC : ∀ {E : Set} → ((Combined E) :* (⊤ := Closed)) Open
+closeC = Do (InL (InR (InR ((V tt) :& Ret))))
+
+
+
+-- Test
+
+exampleProgram : ∀ {s : State} → ((Combined String) :* (⊤ := s)) s
+exampleProgram = lookC >>= λ { (V str) → setC "Ny tilstand"
+                       >>= λ { (V tt) → Ret (V tt)}}
+
+
+exampleProgramWithException : ∀ {s : State} → ((Combined String) :* (⊤ := s)) s
+exampleProgramWithException = lookC >>= λ { (V str) → setC "Ny tilstand"
+                                    >>= λ { (V tt) → throwC "Fejl opstået"
+                                    >>= λ { (V ())}}}
