@@ -220,3 +220,31 @@ exampleProgramWithException : ∀ {s : State} → ((Combined String) :* (⊤ := 
 exampleProgramWithException = lookC >>= λ { (V str) → setC "Ny tilstand"
                                     >>= λ { (V tt) → throwC "Fejl opstået"
                                     >>= λ { (V ())}}}
+
+
+
+-- Interpreter
+
+data Res {E : Set} (A : Pred State) (s : State) : Set where
+  Succes : ∀ {i} → A i → String → Res {E} A s
+  Error : E → Res {E} A s
+
+runStep : ∀ {E : Set} {A : Pred State} {s1 s2 : State} → Res {E} A s2 → Res {E} A s1
+runStep (Succes x st) = Succes x st
+runStep (Error e) = Error e
+
+
+{-# TERMINATING #-}
+run : ∀ {E : Set} {A : Pred State} {i : State} → String → ((Combined E) :* A) i → Res {E} A i
+run st (Ret x) = Succes x st -- Pure/Return
+
+run st (Do (InL (InL (V p :& k)))) = runStep (run st (k sOpen))  -- Open
+run st (Do (InL (InR (InL (V tt :& k))))) = run st (k (V (just 'a'))) -- getC
+run st (Do (InL (InR (InR (V tt :& k))))) = runStep (run st (k (V tt))) -- Close
+
+run st (Do (InR (InL (InL (V tt :& k))))) = run st (k (V st)) -- Look
+run st (Do (InR (InL (InR (V x :& k))))) = run x (k (V tt)) -- Set
+
+
+run st (Do (InR (InR (InL (V e :& k))))) = Error e -- Throw
+run st (Do (InR (InR (InR (V tt :& k))))) = run st (k (V {!!})) -- Handle
