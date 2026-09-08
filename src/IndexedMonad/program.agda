@@ -13,7 +13,7 @@ open import IndexedMonad.Definition
 
 
 data State : Set where
-  s   : State
+  -- s   : State
   i   : State
 
 Val : Set
@@ -23,13 +23,14 @@ X : Set
 X = ℕ
 
 LS : Pred State → Pred State
-LS = ((⊤ := s) :>>: (Val := s)) :+: --look
- ((Val := s) :>>: (⊤ := s)) --set
+LS = ((⊤ := i) :>>: (Val := i)) :+: --look
+ ((Val := i) :>>: (⊤ := i)) --set
 
 
 EXP : Pred State → Pred State
 EXP = ((X := i) :>>: (⊥ := i)) :+: --throw
-      (( ⊤ := i) :>>: (X := i)) --handle
+      (( ⊤ := i) :>>: (X := i)) -- handle her siger vi at throw og handeler skal kunne virke for alle kombinasioner af fejl i alle states
+     
 
 PRO : Pred State → Pred State
 PRO = LS :+: EXP
@@ -40,12 +41,10 @@ pattern FSet p k = Do(InL(InR( V p :& k)))
 pattern FThrow x k = Do(InR(InL( V x :& k)))
 pattern FHandle k = Do(InR(InR( V tt :& k)))
 
-
-
-look : :∗ PRO (Val := s) s
+look : :∗ PRO (Val := i) i
 look = FLook Ret
 
-set : Val → :∗ PRO (⊤ := s) s
+set : Val → :∗ PRO (⊤ := i) i
 set p = FSet p Ret
 
 throw : X →  :∗ PRO (⊥ := i) i
@@ -70,13 +69,59 @@ PRO-IMonad .iextend x (FThrow x₁ k₁) = FThrow x₁ ((λ z → PRO-IMonad .ie
 PRO-IMonad .iextend x (FHandle k₁) = FHandle ((λ z → PRO-IMonad .iextend x (k₁ z)))
 
 
-_»=_ : ∀ {P Q : Pred State} {st} → :∗ PRO P st → (P :→ :∗ PRO Q) → :∗ PRO Q st
-m »= f = PRO-IMonad .iextend f m
-infixl 1 _»=_
+-- _»=_ : ∀ {P Q : Pred State} {st} → :∗ PRO P st → (P :→ :∗ PRO Q) → :∗ PRO Q st
+-- m »= f = PRO-IMonad .iextend f m
+-- infixl 1 _»=_
+
+open Bind PRO-IMonad
+
+incr : :∗ PRO (⊤ := i) i
+incr = look =>= λ v → set (v + 1)
+
+failWith1 : :∗ PRO (⊥ := i) i
+failWith1 = throw 1
+
+alwaysFail : :∗ PRO (⊥ := i) i
+alwaysFail = throw 42
+
+mini-try : :∗ PRO (⊥ := i) i
+mini-try = look =>= λ v →
+           set (v + 1) =>= λ _ → 
+           throw v
+
+mini-recover : :∗ PRO (⊤ := i) i
+mini-recover = handle =>= λ x → 
+               set x
+
+mini-recover1 : :∗ PRO (Val := i) i
+mini-recover1 = handle =>= λ x → look
 
 
-incr : :∗ PRO (⊤ := s) s
-incr = look »= λ { (V v) → set (v + 1) }
+prog1 : :∗ PRO (Val := i) i
+prog1 =
+  look    =>= λ v →
+  set (v + 1) =>= λ _ →
+  handle  =>= λ x →
+  Ret (V (v + x))
+
+
+-- set v {i} -> throw v {i} ; handel v {i} = set v {i}
+
+-- look {i} -> throw v {i} ; handel v {i} -> look {i} = look v {i}
 
 
 
+-- prog =
+--   incr »= λ _ →              -- look(v) → set(v+1)  — cellen bliver v+1
+--   throw v »= λ _ →
+--   handle »= λ { (V x) →      -- burde denne 'x' se v+1, eller den ORIGINALE v?
+--   set x »= λ _ →
+--   look }
+
+
+
+-- prog-reduceret =
+--   look »= λ { (V v) →
+--   set (v + 1) »= λ _ →
+--   set x »= λ _ →              -- men hvilken x?!
+--   look }

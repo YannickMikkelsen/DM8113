@@ -55,7 +55,7 @@ FilePath : Set
 FilePath = String
 
 FH : Pred State → Pred State
-FH = ((FilePath := Closed) :>>: SState)
+FH = ((FilePath := Closed) :>>: SState)  
   :+: (((⊤ := Open) :>>: ((Maybe Char) := Open))
   :+: ((⊤ := Open) :>>: (⊤ := Closed)))
 
@@ -220,3 +220,5 @@ exampleProgramWithException : ∀ {s : State} → ((Combined String) :* (⊤ := 
 exampleProgramWithException = lookC >>= λ { (V str) → setC "Ny tilstand"
                                     >>= λ { (V tt) → throwC "Fejl opstået"
                                     >>= λ { (V ())}}}
+
+

@@ -39,3 +39,17 @@ fGetC = FGetC Ret
 
 fClose : :∗ FH (⊤ := Closed) Open
 fClose = FClose Ret
+
+FH-IFunctor : IFunctor FH
+FH-IFunctor = instance1 instance0 (instance1 instance0 instance0)
+
+
+FH-IMonad : IMonad (:∗ FH)
+FH-IMonad = instance3 FH-IFunctor
+
+open Bind FH-IMonad
+
+
+readFirstChar : FilePath → :∗ FH (Maybe Char := Closed) Closed
+readFirstChar  fp = (fOpen fp) ?>= λ {sOpen → fGetC =>= (λ c → fClose =>= λ _ → Ret ((V c)))
+                                    ; sClosed → Ret ((V nothing))}
