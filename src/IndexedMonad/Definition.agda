@@ -90,3 +90,16 @@ instance4 x .imap h (Ret p)  = Ret (h p)
 instance4 x .imap h (Do ffp)  =  Do (x .imap (instance4 x .imap h) ffp)
 
 
+
+module Bind {I : Set} {M : Pred I → Pred I} (MonadM : IMonad M) where
+
+  _?>=_ : ∀ {P Q : Pred I} {i : I} → M P i → (P :→ M Q) → M Q i
+  c ?>= f = iextend MonadM f c
+
+  infixl 1 _?>=_
+
+  _=>=_ : ∀ {A : Set} {Q : Pred I} {i j : I}
+        → M (A := j) i → (A → M Q j) → M Q i
+  c =>= f = c ?>= λ { (V a) → f a }
+
+  infixl 1 _=>=_
