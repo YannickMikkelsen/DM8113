@@ -57,11 +57,13 @@ composeP g f {i} x = g (f x)
 
 open IFunctor public
 open _:>>:_ public
+-- IFunctor:>>:
 instance0 : ∀ {I : Set} {P Q : Pred I} → IFunctor (P :>>: Q)
 instance0 .imap = λ z {i} z₁ → z₁ .pi :& (λ {i = i₁} z₂ → z (z₁ .k z₂))
 
 
 open IFunctor public
+-- IFunctor:+:
 instance1 : ∀ {I : Set} {F G : Pred I → Pred I}
       → IFunctor F → IFunctor G → IFunctor (F :+: G)
 instance1 FI GI .imap h (InL fp) = InL (FI .imap h fp)
@@ -79,12 +81,14 @@ open IMonad public
 open IFunctor public
 
 {-# TERMINATING #-}
+-- bindM
 instance3 : ∀ {I : Set} {F : Pred I → Pred I} → IFunctor F → IMonad (:∗ F)
 instance3 x .iskip = Ret
 instance3 x .iextend x₁ (Ret x₂) = x₁ x₂
 instance3 x .iextend g (Do ffp) = Do (x .imap (iextend (instance3 x) g) ffp)
 
 {-# TERMINATING #-}
+-- mapM
 instance4 : ∀ {I : Set} {F : Pred I → Pred I} → IFunctor F → IFunctor (:∗ F)
 instance4 x .imap h (Ret p)  = Ret (h p)
 instance4 x .imap h (Do ffp)  =  Do (x .imap (instance4 x .imap h) ffp)

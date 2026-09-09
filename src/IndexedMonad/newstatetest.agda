@@ -85,13 +85,32 @@ fClose : ∀ {m} → :∗ PRO (⊤ := (Closed , m)) (Open , m)
 fClose {m} = FClose (λ { (V tt) → Ret (V tt) })
 
 
+--- Test
+
+IFunctorFH : IFunctor FH
+IFunctorFH = instance1 instance0 (instance1 instance0 instance0)
+
+IFunctorLS : IFunctor LS
+IFunctorLS = instance1 instance0 instance0
+
+IFunctorFH-lift : IFunctor FH-lift
+IFunctorFH-lift .imap f x = imap IFunctorFH f x
+
+IFunctorLS-lift : IFunctor LS-lift
+IFunctorLS-lift .imap f x = imap IFunctorLS f x
 
 PRO-IFunctor : IFunctor PRO
-PRO-IFunctor .imap x (InL (InL (pi₁ :& k₁))) = InL (InL (pi₁ :& (λ {i = i₂} z → x (k₁ z))))
-PRO-IFunctor .imap x (InL (InR (InL x₁))) = InL (InR (InL (x₁ .pi :& (λ {i = i₂} z → x (x₁ .k z)))))
-PRO-IFunctor .imap x (InL (InR (InR x₁))) = InL (InR (InR (x₁ .pi :& (λ {i = i₂} z → x (x₁ .k z)))))
-PRO-IFunctor .imap x (InR (InL (pi₁ :& k₁))) = InR (InL (pi₁ :& (λ {i = i₂} z → x (k₁ z))))
-PRO-IFunctor .imap x (InR (InR x₁)) = InR (InR (x₁ .pi :& (λ {i = i₂} z → x (x₁ .k z))))
+PRO-IFunctor = instance1 IFunctorFH-lift IFunctorLS-lift
+
+--- Test
+
+
+--PRO-IFunctor : IFunctor PRO
+--PRO-IFunctor .imap x (InL (InL (pi₁ :& k₁))) = InL (InL (pi₁ :& (λ {i = i₂} z → x (k₁ z))))
+--PRO-IFunctor .imap x (InL (InR (InL x₁))) = InL (InR (InL (x₁ .pi :& (λ {i = i₂} z → x (x₁ .k z)))))
+--PRO-IFunctor .imap x (InL (InR (InR x₁))) = InL (InR (InR (x₁ .pi :& (λ {i = i₂} z → x (x₁ .k z)))))
+--PRO-IFunctor .imap x (InR (InL (pi₁ :& k₁))) = InR (InL (pi₁ :& (λ {i = i₂} z → x (k₁ z))))
+--PRO-IFunctor .imap x (InR (InR x₁)) = InR (InR (x₁ .pi :& (λ {i = i₂} z → x (x₁ .k z))))
 
 
 PRO-IMonad : IMonad (:∗ PRO)
@@ -111,11 +130,11 @@ readFirstChar {m} fp =
 
 
 program : FilePath → Val → :∗ PRO (Maybe ℕ := (Closed , i)) (Closed , i)
-program fp m = look =>= λ c → set (c + 1) 
-                    =>= λ tt → (fOpen fp) 
-                    ?>= (λ{(sOpen , refl) → (set (c + 5)) 
-                                =>= (λ tt → fClose 
-                                =>= (λ _ → look 
+program fp m = look =>= λ c → set (c + 1)
+                    =>= λ tt → (fOpen fp)
+                    ?>= (λ{(sOpen , refl) → (set (c + 5))
+                                =>= (λ tt → fClose
+                                =>= (λ _ → look
                                 =>= λ v → Ret ((V (just v)))))
                                  ;
         (sClosed , refl) → look =>= (λ v → Ret (V (just v)))})
