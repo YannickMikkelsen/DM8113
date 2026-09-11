@@ -25,8 +25,14 @@ data SState : FileState → Set where
   sOpen   : SState Open
   sClosed : SState Closed
 
+
 State : Set
 State = FileState × MemState
+
+data AnyState : FileState × MemState → Set where
+  AOpen   : AnyState (Open , i)
+  AClosed : AnyState (Closed , i)
+
 
 Val : Set
 Val = ℕ
@@ -36,6 +42,13 @@ X = ℕ
 
 FilePath : Set
 FilePath = String
+
+-- data AnyS (A : Set) : State → Set where
+--   anyS : ∀ {s} → A → AnyS A s
+
+-- EXP : Pred State → Pred State
+-- EXP = ((AnyS X) :>>: (AnyS ⊥)) :+:   -- throw
+--       ((AnyS ⊤) :>>: (AnyS X))       -- handle
 
 LS : Pred MemState → Pred MemState
 LS = ((⊤ := i) :>>: (Val := i))     -- look
@@ -47,10 +60,12 @@ FH = ((FilePath := Closed) :>>: SState)                    -- fOpen
   :+:  ((⊤ := Open) :>>: (⊤ := Closed)))                    -- fClose
 
 FH-lift : Pred State → Pred State
-FH-lift Q (f , m) = FH (λ f′ → Q (f′ , m)) f
+FH-lift Q (f , m)  = FH (λ f′ → Q (f′ , m)) f
 
 LS-lift : Pred State → Pred State
 LS-lift Q (f , m) = LS (λ m′ → Q (f , m′)) m
+-- kan nok blive merer general
+
 
 PRO : Pred State → Pred State
 PRO = FH-lift :+: LS-lift
@@ -122,11 +137,17 @@ open Bind PRO-IMonad
 incr : ∀ {f} → :∗ PRO (⊤ := (f , i)) (f , i)
 incr {f} = look =>= λ v → set (v + 1)
 
+-- readFirstChar : FilePath → :∗ FH (Maybe Char := Closed) Closed
+-- readFirstChar  fp = (fOpen fp) ?>= λ {sOpen → fGetC 
+--                                =>= (λ c → fClose 
+--                                =>= λ _ → Ret ((V c)))
+--                                 ; sClosed → Ret ((V nothing))}
 
 readFirstChar : ∀ {m} → FilePath → :∗ PRO (Maybe Char := (Closed , m)) (Closed , m)
-readFirstChar {m} fp =
-  (fOpen fp) ?>= λ { (sOpen  , refl) → fGetC =>= λ c → fClose =>= λ _ → Ret (V c)
-                    ; (sClosed , refl) → Ret (V nothing) }
+readFirstChar {m} fp = (fOpen fp) ?>= λ { (sOpen  , refl) → fGetC 
+                                  =>= λ c → fClose 
+                                  =>= λ _ → Ret (V c)
+                                  ; (sClosed , refl) → Ret (V nothing) }
 
 
 program : FilePath → Val → :∗ PRO (Maybe ℕ := (Closed , i)) (Closed , i)

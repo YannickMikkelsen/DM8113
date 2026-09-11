@@ -51,5 +51,14 @@ open Bind FH-IMonad
 
 
 readFirstChar : FilePath → :∗ FH (Maybe Char := Closed) Closed
-readFirstChar  fp = (fOpen fp) ?>= λ {sOpen → fGetC =>= (λ c → fClose =>= λ _ → Ret ((V c)))
-                                    ; sClosed → Ret ((V nothing))}
+readFirstChar  fp = (fOpen fp) ?>= λ {sOpen → fGetC 
+                               =>= (λ c → fClose 
+                               =>= λ _ → Ret ((V c)))
+                                ; sClosed → Ret ((V nothing))}
+
+
+-- readFirstChar : ∀ {m} → FilePath → :∗ PRO (Maybe Char := (Closed , m)) (Closed , m)
+-- readFirstChar {m} fp = (fOpen fp) ?>= λ { (sOpen  , refl) → fGetC 
+--                                   =>= λ c → fClose 
+--                                   =>= λ _ → Ret (V c)
+--                                   ; (sClosed , refl) → Ret (V nothing) }

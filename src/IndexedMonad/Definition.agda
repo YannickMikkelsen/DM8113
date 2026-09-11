@@ -33,9 +33,6 @@ record IMonad {I : Set} (M : Pred I → Pred I) : Set₁ where
 
 
 
-
-
-
 record _:>>:_ {I : Set} (P Q : Pred I) (R : Pred I) (i : I) : Set where
   constructor _:&_
   field
