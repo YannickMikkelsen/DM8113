@@ -8,8 +8,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym;
 open import Function using (_∘_)
 open import Data.String  using (String; uncons)
 open import Data.Empty using (⊥)
-open import Data.Product using (Σ; Σ-syntax; _,_)
-
+open import Data.Product using (Σ; Σ-syntax; _,_; proj₁)
 
 data OC : Set where
   Open : OC
@@ -35,11 +34,8 @@ record PMonad {I : Set} {M : I → I → Set → Set} : Set₁ where
 ProjL : Set → Set → Set
 ProjL I A = I → A
 
-ProjF : Set → OC → Set
-ProjF I S = I → SOC S
-
-ProjFF : Set → Set
-ProjFF I = I → OC
+ProjF : Set → Set
+ProjF I = I → OC
 
 InjL : Set → Set → Set → Set
 InjL I A J = I → A → J
@@ -53,77 +49,83 @@ record Combined {I : Set} {M : I → I → Set → Set} : Set₁ where
   field
     pmonad : PMonad {I} {M}
   field
-    look : ∀ {i : I} {a : Set} → ProjL I a → M i i a
-    set  : ∀ {i j : I} {a : Set} → InjL I a I → a → M i j ⊤
-    fopen : ∀ {i j : I} → ProjF I Closed → InjF I Open I → String →  M i j FH
-    fread : ∀ {i : I} → (getOC : ProjFF I) → getOC i ≡ Open → FH → M i i (Maybe Char)
-    fclose : ∀ {i j : I} →  ProjF I Open → InjF I Closed I → M i j ⊤
-    throw : ∀ {i j : I} {A : Set} →  M i j ⊥
+    look : ∀ {i : I} {a : Set} → (proj : ProjL I a) → M i i a
+    set  : ∀ {i : I} {a : Set} (inj : InjL I a I) (val : a) → M i (inj i val) ⊤
+    fopen : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Closed → (inj : InjF I Open I) → String →  M i (inj i SOpen) FH
+    fread : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → M i i (Maybe Char)
+    fclose : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open  → (inj : InjF I Closed I) → M i (inj i SClosed) ⊤
+    throw : ∀ {i j : I} {A : Set} →  M i j A
 
 
--- M : State → State → Set → Set
--- M i j a = State → Maybe ( a × State)
+M : State → State → Set → Set
+M i j A =
+  (s : State) →
+  s ≡ i →
+  Σ[ s' ∈ State ] (s' ≡ j) × Maybe A
 
+open PMonad
+pmonadState : PMonad {State} {M}
+pmonadState .pure a s ref = s , (ref , just a)
+pmonadState ._>>=_ ma f s ref with ma s ref
+... | x , fst , just x₁ = f x₁ x fst
+... | x , fst , nothing = _ , refl , nothing
 
-
--- open PMonad
--- pmonadState : PMonad {State} {M}
--- pmonadState .pure {i} {A} x j = just (x , j)
--- pmonadState . _>>=_ ma f s with ma s
--- ... | just (a , s₁) = f a s₁
--- ... | nothing = nothing
 
 -- open Combined
--- combinedState : Combined {State} {M}
--- combinedState .pmonad = pmonadState
--- combinedState .look proj s = just (proj s , s)
--- combinedState .set inj a s = just (tt , inj s a)
--- combinedState .fopen proj inj fh s with proj s
--- ... | SClosed = just (fh , (inj s SOpen))
--- combinedState .fread proj fh s with proj s
--- ... | SOpen with uncons fh
--- ... | just (c , fh′) = just ((just c) , s)
--- ... | nothing = just (nothing , s)
--- combinedState .fclose proj inj s with proj s
--- ... | SOpen = just (tt , inj s SClosed)
--- combinedState .throw s = nothing
+combinedState : Combined {State} {M}
+combinedState .Combined.pmonad = pmonadState
+combinedState .Combined.look proj s ref = s , ref , just (proj s)
+combinedState .Combined.set inj val s ref = inj s val , cong (λ x → inj x val) ref , just tt
+combinedState .Combined.fopen getOC x inj fh s ref = (inj s SOpen) , cong (λ x₁ → inj x₁ SOpen) ref , just fh
+combinedState .Combined.fread {i} getOC ref fh s x₂ with uncons fh
+... | just (c , fp′) = s , x₂ , just (just c)
+... | nothing = s , x₂ , nothing
+combinedState .Combined.fclose {i} getOC ref inj s x₁ = inj s SClosed , (cong (λ x → inj x SClosed) x₁ , just tt)
+combinedState .Combined.throw s x = _ , refl , nothing
 
 
 
 
--- getMem : ProjL State ℕ
--- getMem (n , _) = n
+infixr 1 _>>>=_
+_>>>=_ = pmonadState .PMonad._>>=_
 
--- getClosed : ProjF State Closed
--- getClosed (n , Closed) = SClosed
--- getClosed (n , Open) = SClosed
+getMem : ProjL State ℕ
+getMem (n , _) = n
 
--- getOpen : ProjF State Open
--- getOpen (n , Open) = SOpen
--- getOpen (n , Closed) = SOpen
+getOC : ProjF State
+getOC (_ , oc) = oc
 
+setMem : InjL State ℕ State
+setMem (n , oc) val = val , oc
 
--- setMem : InjL State ℕ State
--- setMem (n , oc) val = val , oc
+openFile : InjF State Open State
+openFile (n , _) o = n , Open
 
--- openFile : InjF State Open State
--- openFile (n , _) soc = n , Open
-
-
--- closeFile : InjF State Closed State
--- closeFile (n , _) soc = n , Closed
-
--- ReadOpenSetClose : ∀ {i j : State} → M i j ⊤
--- ReadOpenSetClose {i} {j} x =
---   pmonadState ._>>=_ {i} {i} {i} (combinedState .look {i} getMem) (λ val →
---   pmonadState ._>>=_ {i} {i} {j} (combinedState .fopen {i} {j} getClosed openFile "Hello World") λ fh →
---   pmonadState ._>>=_ {j} {j} {j} (combinedState .set {j} {j} setMem val) (λ _ →
---   combinedState .fclose {j} {i} getOpen closeFile)) x
+closeFile : InjF State Closed State
+closeFile (n , _) _ = n , Closed
 
 
+-- ReadOpenSetClose : ∀ {i : State} → M i (67 , Closed) ⊤
+-- ReadOpenSetClose {n , Open} s x = (67 , Closed) , refl , nothing
+-- ReadOpenSetClose {n , Closed} s =
+--   pmonadState ._>>=_ (combinedState .look getMem) (λ val →
+--   pmonadState ._>>=_ (combinedState .fopen getOC refl openFile "Hello World") λ fh →
+--   pmonadState ._>>=_ (combinedState .set setMem 67) λ z →
+--   combinedState .fclose getOC refl closeFile) s
+
+open Combined combinedState
+
+ReadOpenSetClose : ∀ {i : State} → M i (67 , Closed) ⊤
+ReadOpenSetClose (n , Open) refl = (67 , Closed) , refl , nothing
+ReadOpenSetClose (n , Closed) refl =
+  ((look getMem) >>>= λ val →
+  (fopen getOC refl openFile "Hello World") >>>= (λ fh →
+  (set setMem 67) >>>= λ z →
+  fclose getOC refl closeFile)) (n , Closed) refl
 
 
 
-
-
-
+BadProgram : ∀ {i : State} → M i (0 , Closed) ⊤
+BadProgram {n , Open} s eq = throw s eq
+BadProgram {n , Closed} s eq = (fopen getOC refl openFile "File.txt" >>>= 
+                                          λ x → set setMem 132435678 >>>= λ _ → throw) s eq
