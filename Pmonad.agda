@@ -119,15 +119,6 @@ myFclose : ∀ {n : ℕ} → M (n , Open) (n , Closed) ⊤
 myFclose = fclose getOC refl closeFile
 
 
---ReadOpenSetClose : ∀ {i : State} → M i (67 , Closed) ⊤
---ReadOpenSetClose (n , Open) refl = (67 , Closed) , refl , nothing
---ReadOpenSetClose (n , Closed) refl =
---  ((look getMem) >>>= λ val →
---  (fopen getOC refl openFile "Hello World") >>>= (λ fh →
---  (set setMem 67) >>>= λ z →
---  fclose getOC refl closeFile)) (n , Closed) refl
-
-
 ReadOpenSetClose : ∀ {i : State} → M i (67 , Closed) ⊤
 ReadOpenSetClose (n , Open) refl = (67 , Closed) , refl , nothing
 ReadOpenSetClose (n , Closed) refl =
