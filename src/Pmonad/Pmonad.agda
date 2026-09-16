@@ -6,7 +6,7 @@ open import Data.Nat using (ℕ)
 open import Data.Product using (_×_; _,_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym; trans)
 open import Function using (_∘_)
-open import Data.String  using (String; uncons)
+open import Data.String  using (String; uncons; _++_; fromChar)
 open import Data.Empty using (⊥)
 open import Data.Product using (Σ; Σ-syntax; _,_; proj₁)
 
@@ -55,8 +55,10 @@ record Combined {I : Set} {M : I → I → Set → Set} : Set₁ where
     set  : ∀ {i : I} {a : Set} (inj : InjL I a I) (val : a) → M i (inj i val) ⊤
     fopen : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Closed → (inj : InjF I Open I) → String →  M i (inj i SOpen) FH
     fread : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → M i i (Maybe Char)
+    fwrite : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → Char → M i i FH
     fclose : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open  → (inj : InjF I Closed I) → M i (inj i SClosed) ⊤
     throw : ∀ {i j : I} {A : Set} →  M i j A
+    catch : ∀ {i j : I} {A : Set} → M i j A → (∀ {k : I} → M k j A) → M i j A
 
 
 M : State → State → Set → Set
@@ -80,8 +82,12 @@ combinedState .Combined.fopen getOC _ setStatus fh s eq = (setStatus s SOpen) , 
 combinedState .Combined.fread getOC _ fh s eq with uncons fh
 ... | just (c , _) = s , eq , just (just c)
 ... | nothing = s , eq , just (nothing)
+combinedState .Combined.fwrite getOC _ fh c s eq = s , (eq , (just (fh ++ fromChar c)))
 combinedState .Combined.fclose getOC _ setStatus s eq = setStatus s SClosed , (cong (λ st → setStatus st SClosed) eq , just tt)
 combinedState .Combined.throw s eq = _ , refl , nothing
+combinedState .Combined.catch ma mb s eq with ma s eq
+... | s' , eq' , just x = s' , eq' , just x
+... | s' , eq' , nothing = mb s' eq'
 
 infixr 1 _>>>=_
 _>>>=_ = pmonadState .PMonad._>>=_
@@ -115,6 +121,12 @@ openFile fh = fopen getOC refl openFileStatus fh
 closeFile : ∀ {n : ℕ} → M (n , Open) (n , Closed) ⊤
 closeFile = fclose getOC refl closeFileStatus
 
+readFile : ∀ {n : ℕ} → FH → M (n , Open) (n , Open) (Maybe Char)
+readFile fh = fread getOC refl fh
+
+writeFile : ∀ {n : ℕ} → FH → Char → M (n , Open) (n , Open) FH
+writeFile fh c = fwrite getOC refl fh c
+
 
 
 ReadOpenSetClose : ∀ {i : State} → M i (67 , Closed) ⊤
@@ -125,7 +137,20 @@ ReadOpenSetClose (n , Closed) refl =
   (writeMem 67) >>>= λ z →
   closeFile)) (n , Closed) refl
 
+ReadCharAndUpdate : ∀ {i : State} → String → M i (67 , Closed) (Maybe Char)
+ReadCharAndUpdate fh (n , Open) refl = (67 , Closed) , refl , nothing
+ReadCharAndUpdate fh (n , Closed) refl =
+  (openFile fh >>>= λ handle →
+  readFile handle >>>= λ charOpt →
+  writeMem 67 >>>= λ _ →
+  closeFile >>>= λ _ → pmonadState .pure charOpt ) (n , Closed) refl
 
+OpenWriteThrow : ∀ {i : State} → String → M i (67 , Closed) ⊤
+OpenWriteThrow fh (n , Open) refl = throw (n , Open) refl
+OpenWriteThrow fh (n , Closed) refl =
+  ((openFile fh) >>>= ( λ handle →
+  (writeFile handle 'A') >>>= λ _ →
+  throw)) (n , Closed) refl
 
 BadProgram : ∀ {i : State} → M i (0 , Closed) ⊤
 BadProgram {n , Open} s eq = throw s eq
@@ -133,3 +158,17 @@ BadProgram {n , Closed} s eq =
   (openFile "File.txt" >>>= λ x →
   writeMem 132435678 >>>= λ _ →
   throw) s eq
+
+testOpenWriteThrow : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe ⊤
+testOpenWriteThrow = OpenWriteThrow "A" (0 , Closed) refl
+
+testReadChar : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe (Maybe Char)
+testReadChar = ReadCharAndUpdate "Hello World" (0 , Closed) refl
+
+testSuccess : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe ⊤
+testSuccess = ReadOpenSetClose (0 , Closed) refl
+
+testFail : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe ⊤
+testFail = ReadOpenSetClose (0 , Open) refl
+
+
