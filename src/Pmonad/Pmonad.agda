@@ -10,6 +10,8 @@ open import Data.String  using (String; uncons; _++_; fromChar)
 open import Data.Empty using (⊥)
 open import Data.Product using (Σ; Σ-syntax; _,_; proj₁)
 
+infixr 1 _>>>=_
+
 data OC : Set where
   Open : OC
   Closed : OC
@@ -20,6 +22,7 @@ data SOC : OC → Set where
 
 State : Set
 State = ℕ × OC
+-- set × OC x flag
 
 FH : Set
 FH = String
@@ -57,11 +60,12 @@ record Combined {I : Set} {M : I → I → Set → Set} : Set₁ where
     fread : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → M i i (Maybe Char)
     fwrite : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → Char → M i i FH
     fclose : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open  → (inj : InjF I Closed I) → M i (inj i SClosed) ⊤
-    throw : ∀ {i j : I} {A : Set} →  M i j A
+    throw : ∀ {i j : I} {A : Set} →  M i j A -- M i i A
     catch : ∀ {i j : I} {A : Set} → M i j A → (∀ {k : I} → M k j A) → M i j A
 
 
 M : State → State → Set → Set
+-- M i j A = (s : State) → s ≡ i → Maybe (Σ[ s' ∈ State ] (s' ≡ j) × A)
 M i j A = (s : State) → s ≡ i → Σ[ s' ∈ State ] (s' ≡ j) × Maybe A
 
 open PMonad
@@ -72,8 +76,6 @@ pmonadState ._>>=_ ma f s eq with ma s eq
 ... | st' , stEq , just res = f res st' stEq
 ... | st' , stEq , nothing = _ , refl , nothing
 
-
--- open Combined
 combinedState : Combined {State} {M}
 combinedState .Combined.pmonad = pmonadState
 combinedState .Combined.look getMem s eq = s , eq , just (getMem s)
@@ -89,7 +91,8 @@ combinedState .Combined.catch ma mb s eq with ma s eq
 ... | s' , eq' , just x = s' , eq' , just x
 ... | s' , eq' , nothing = mb s' eq'
 
-infixr 1 _>>>=_
+
+
 _>>>=_ = pmonadState .PMonad._>>=_
 
 getMem : ProjL State ℕ
@@ -170,5 +173,24 @@ testSuccess = ReadOpenSetClose (0 , Closed) refl
 
 testFail : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe ⊤
 testFail = ReadOpenSetClose (0 , Open) refl
+
+
+
+
+-- failAfterWrite : ∀ {n : ℕ} → M (n , Closed) (99 , Closed) ⊤
+-- failAfterWrite {n} (n , Closed) refl = 
+--   ((writeMem 99) >>>= (λ _ →  
+--   throw)) (99 , Closed) refl
+
+-- recoverMem : ∀ {k : State} → M k (99 , Closed) ⊤
+-- recoverMem {k} (fst , Open) eq = pure ? ?
+-- recoverMem {k} (fst , Closed) eq = ?
+
+-- testMemCollision : M (0 , Closed) (99 , Closed) ⊤
+-- testMemCollision = catch failAfterWrite recoverMem
+
+
+
+
 
 
