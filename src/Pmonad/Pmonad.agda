@@ -20,9 +20,15 @@ data SOC : OC → Set where
   SOpen : SOC Open
   SClosed : SOC Closed
 
+
+data Flag : Set where
+  OK        : Flag
+  Unhandled : Flag
+
+  
 State : Set
-State = ℕ × OC
--- set × OC x flag
+State = ℕ × OC -- × Flag
+-- Set × OC x flag
 
 FH : Set
 FH = String
@@ -90,7 +96,6 @@ combinedState .Combined.throw s eq = _ , refl , nothing
 combinedState .Combined.catch ma mb s eq with ma s eq
 ... | s' , eq' , just x = s' , eq' , just x
 ... | s' , eq' , nothing = mb s' eq'
-
 
 
 _>>>=_ = pmonadState .PMonad._>>=_
