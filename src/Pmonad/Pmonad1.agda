@@ -142,7 +142,7 @@ writeFile fh c = fwrite getStatus refl fh c
 
 
 
------------------SKLA KIGGES PÅ-------
+-----------------SKLA KIGGES PÅ-----------------
 setMemFH : InjL State ⊤ State
 setMemFH (_ , oc , flag) _ = (FH , oc , flag)
 
@@ -167,3 +167,14 @@ ReadOpenSetClose (fst , Open , Unhandled) x =
 ReadOpenSetClose (fst , Closed , Unhandled) x =
   (set setOK tt >>>= λ _ → openFile {fst} "" >>>= λ fh → finishFromOpen {fst})
     (fst , Closed , Unhandled) refl
+
+
+
+-------------------------------------------------
+
+
+M1 : State → State → Set → Set₁
+M1 i j A = (s : State) → s ≡ i → Maybe (Σ[ s' ∈ State ] (s' ≡ j) × A)
+
+monadState1 : PMonad {State} {M1}
+pmonadState1 = {!   !}
