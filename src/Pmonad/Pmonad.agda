@@ -180,8 +180,6 @@ testFail : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe ⊤
 testFail = ReadOpenSetClose (0 , Open) refl
 
 
-
-
 -- failAfterWrite : ∀ {n : ℕ} → M (n , Closed) (99 , Closed) ⊤
 -- failAfterWrite {n} (n , Closed) refl = 
 --   ((writeMem 99) >>>= (λ _ →  
