@@ -8,7 +8,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym;
 open import Function using (_∘_)
 open import Data.String  using (String; uncons; _++_; fromChar)
 open import Data.Empty using (⊥)
-open import Data.Product using (Σ; Σ-syntax; _,_; proj₁)
+open import Data.Product using (Σ; Σ-syntax; _,_; proj₁; proj₂)
 
 infixr 1 _>>>=_
 
@@ -25,9 +25,9 @@ data Flag : Set where
   OK        : Flag
   Unhandled : Flag
 
-  
+
 State : Set
-State = ℕ × OC -- × Flag
+State = ℕ × OC × Flag
 -- Set × OC x flag
 
 FH : Set
@@ -101,19 +101,19 @@ combinedState .Combined.catch ma mb s eq with ma s eq
 _>>>=_ = pmonadState .PMonad._>>=_
 
 getMem : ProjL State ℕ
-getMem (n , _) = n
+getMem (n , _ , _) = n
 
 getOC : ProjF State
-getOC (_ , oc) = oc
+getOC (_ , oc , _) = oc
 
 setMem : InjL State ℕ State
-setMem (n , oc) val = val , oc
+setMem (n , oc , fl) val = val , oc , fl
 
 openFileStatus : InjF State Open State
-openFileStatus (n , _) o = n , Open
+openFileStatus (n , _ , fl) o = n , Open , fl
 
 closeFileStatus : InjF State Closed State
-closeFileStatus (n , _) _ = n , Closed
+closeFileStatus (n , _ , fl) _ = n , Closed , fl
 
 open Combined combinedState
 
@@ -123,66 +123,68 @@ readMem = look getMem
 writeMem : ∀ {i : State} → (val : ℕ) → M i (setMem i val) ⊤
 writeMem val = set setMem val
 
-openFile : ∀ {n : ℕ} → String → M (n , Closed) (n , Open) FH
+openFile : ∀ {n : ℕ}{fl : Flag} → String → M (n , Closed , fl) (n , Open , fl) FH
 openFile fh = fopen getOC refl openFileStatus fh
 
-closeFile : ∀ {n : ℕ} → M (n , Open) (n , Closed) ⊤
+closeFile : ∀ {n : ℕ}{fl : Flag} → M (n , Open , fl) (n , Closed , fl) ⊤
 closeFile = fclose getOC refl closeFileStatus
 
-readFile : ∀ {n : ℕ} → FH → M (n , Open) (n , Open) (Maybe Char)
+readFile : ∀ {n : ℕ}{fl : Flag} → FH → M (n , Open , fl) (n , Open , fl) (Maybe Char)
 readFile fh = fread getOC refl fh
 
-writeFile : ∀ {n : ℕ} → FH → Char → M (n , Open) (n , Open) FH
+writeFile : ∀ {n : ℕ}{fl : Flag} → FH → Char → M (n , Open , fl) (n , Open , fl) FH
 writeFile fh c = fwrite getOC refl fh c
 
 
 
-ReadOpenSetClose : ∀ {i : State} → M i (67 , Closed) ⊤
-ReadOpenSetClose (n , Open) refl = (67 , Closed) , refl , nothing
-ReadOpenSetClose (n , Closed) refl =
+ReadOpenSetClose : ∀ {i : State} → M i (67 , Closed , proj₂ (proj₂ i)) ⊤
+ReadOpenSetClose (n , Open , fl) refl = (67 , Closed , fl) , refl , nothing
+ReadOpenSetClose (n , Closed , fl) refl =
   ((readMem) >>>= λ val →
   (openFile "Hello World") >>>= (λ fh →
   (writeMem 67) >>>= λ z →
-  closeFile)) (n , Closed) refl
+  closeFile)) (n , Closed , fl) refl
 
-ReadCharAndUpdate : ∀ {i : State} → String → M i (67 , Closed) (Maybe Char)
-ReadCharAndUpdate fh (n , Open) refl = (67 , Closed) , refl , nothing
-ReadCharAndUpdate fh (n , Closed) refl =
+ReadCharAndUpdate : ∀ {i : State} → String → M i (67 , Closed , proj₂ (proj₂ i)) (Maybe Char)
+ReadCharAndUpdate fh (n , Open , fl) refl = (67 , Closed , fl) , refl , nothing
+ReadCharAndUpdate fh (n , Closed , fl) refl =
   (openFile fh >>>= λ handle →
   readFile handle >>>= λ charOpt →
   writeMem 67 >>>= λ _ →
-  closeFile >>>= λ _ → pmonadState .pure charOpt ) (n , Closed) refl
+  closeFile >>>= λ _ → pmonadState .pure charOpt ) (n , Closed , fl) refl
 
-OpenWriteThrow : ∀ {i : State} → String → M i (67 , Closed) ⊤
-OpenWriteThrow fh (n , Open) refl = throw (n , Open) refl
-OpenWriteThrow fh (n , Closed) refl =
+OpenWriteThrow : ∀ {i : State} → String → M i (67 , Closed , Unhandled) ⊤
+OpenWriteThrow fh (n , Open , fl) refl = throw (n , Open , fl) refl
+OpenWriteThrow fh (n , Closed , fl) refl =
   ((openFile fh) >>>= ( λ handle →
   (writeFile handle 'A') >>>= λ _ →
-  throw)) (n , Closed) refl
+  throw)) (n , Closed , fl) refl
 
-BadProgram : ∀ {i : State} → M i (0 , Closed) ⊤
-BadProgram {n , Open} s eq = throw s eq
-BadProgram {n , Closed} s eq =
+BadProgram : ∀ {i : State} → M i (0 , Closed , proj₂ (proj₂ i)) ⊤
+BadProgram {n , Open , fl} s eq = throw s eq
+BadProgram {n , Closed , fl} s eq =
   (openFile "File.txt" >>>= λ x →
   writeMem 132435678 >>>= λ _ →
   throw) s eq
 
-testOpenWriteThrow : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe ⊤
-testOpenWriteThrow = OpenWriteThrow "A" (0 , Closed) refl
+testOpenWriteThrow : Σ[ s' ∈ State ] (s' ≡ (67 , Closed , Unhandled)) × Maybe ⊤
+testOpenWriteThrow = OpenWriteThrow "A" (0 , Closed , OK) refl
 
-testReadChar : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe (Maybe Char)
-testReadChar = ReadCharAndUpdate "Hello World" (0 , Closed) refl
+testReadChar : Σ[ s' ∈ State ] (s' ≡ (67 , Closed , OK)) × Maybe (Maybe Char)
+testReadChar = ReadCharAndUpdate "Hello World" (0 , Closed , OK) refl
 
-testSuccess : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe ⊤
-testSuccess = ReadOpenSetClose (0 , Closed) refl
+testSuccess : Σ[ s' ∈ State ] (s' ≡ (67 , Closed , OK)) × Maybe ⊤
+testSuccess = ReadOpenSetClose (0 , Closed , OK) refl
 
-testFail : Σ[ s' ∈ State ] (s' ≡ (67 , Closed)) × Maybe ⊤
-testFail = ReadOpenSetClose (0 , Open) refl
+testFail : Σ[ s' ∈ State ] (s' ≡ (67 , Closed , OK)) × Maybe ⊤
+testFail = ReadOpenSetClose (0 , Open , OK) refl
+
+
 
 
 -- failAfterWrite : ∀ {n : ℕ} → M (n , Closed) (99 , Closed) ⊤
--- failAfterWrite {n} (n , Closed) refl = 
---   ((writeMem 99) >>>= (λ _ →  
+-- failAfterWrite {n} (n , Closed) refl =
+--   ((writeMem 99) >>>= (λ _ →
 --   throw)) (99 , Closed) refl
 
 -- recoverMem : ∀ {k : State} → M k (99 , Closed) ⊤
@@ -191,9 +193,4 @@ testFail = ReadOpenSetClose (0 , Open) refl
 
 -- testMemCollision : M (0 , Closed) (99 , Closed) ⊤
 -- testMemCollision = catch failAfterWrite recoverMem
-
-
-
-
-
 

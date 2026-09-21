@@ -1,4 +1,6 @@
 module Pmonad.Pmonad1 where
+open import Agda.Primitive using (Setω)
+open import Level using (Level; suc; zero; _⊔_)
 open import Data.Unit    using (⊤; tt)
 open import Data.Maybe   using (Maybe; just; nothing)
 open import Data.Char using (Char)
@@ -9,6 +11,8 @@ open import Function using (_∘_)
 open import Data.String  using (String; uncons; _++_; fromChar)
 open import Data.Empty using (⊥)
 open import Data.Product using (Σ; Σ-syntax; _,_; proj₁)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+
 
 -- infixr 1 _>>>=_
 
@@ -28,19 +32,22 @@ data Flag : Set where
   
 State : Set₁
 State = Set × OC × Flag
-
+-- vi har flag for at indikerer at der er skat en fejl og dermed at resultatet ikke kan bruges 
+-- catch throw1 :: catch (throw e) h ≡ h e
+-- catch throw2 :: catch t throw ≡ t
+-- Bad idea!
 
 FH : Set
 FH = String
 
-record PMonad {I : Set₁} {M : I → I → Set → Set₁} : Set₂ where
+record PMonad {I : Set₁} {M : ∀ {l} → I → I → Set l → Set (suc zero ⊔ l)} : Setω  where
   field
-    pure : ∀ {i} {A : Set} → A → M i i A
-    _>>=_ : ∀ {i j k} {A B : Set} → M i j A → (A → M j k B) → M i k B
+    pure : ∀ {l} {i} {A : Set l} → A → M i i A
+    _>>=_ : ∀ {l₁ l₂} {i j k} {A : Set l₁} {B : Set l₂} → M i j A → (A → M j k B) → M i k B
 
 
 -- Get memory
-ProjL : Set₁ → Set → Set₁ 
+ProjL : ∀ {l} → Set₁ → Set l → Set (suc zero ⊔ l)
 ProjL I A = I → A
 
 -- Get FileStatus
@@ -48,29 +55,33 @@ ProjF : Set₁ → Set₁
 ProjF I = I → OC
 
 -- Set Memory
-InjL : Set₁ → Set → Set₁ → Set₁
+InjL : ∀ {l} → Set₁ → Set l → Set₁ → Set (suc zero ⊔ l)
 InjL I A J = I → A → J
 
 -- Set File Status
 InjF : Set₁ → OC → Set₁ → Set₁
 InjF I S J = I → SOC S → J
 
+InjC : Set₁ → Set₁ → Set₁
+InjC I J = I → J
 
-record Combined {I : Set₁} {M : I → I → Set → Set₁} : Set₂ where
+
+
+
+record Combined {I : Set₁} {M : ∀ {l} → I → I → Set l → Set (suc zero ⊔ l)} : Setω  where
   field
     pmonad : PMonad {I} {M}
   field
-    look : ∀ {i : I} {a : Set} → (proj : ProjL I a) → M i i a
-    set  : ∀ {i : I} {a : Set} (inj : InjL I a I) (val : a) → M i (inj i val) ⊤
+    look : ∀ {i : I} {l} {a : Set l} → (proj : ProjL I a) → M i i a
+    set  : ∀ {i : I} {l} {a : Set l} (inj : InjL I a I) (val : a) → M i (inj i val) ⊤
     fopen : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Closed → (inj : InjF I Open I) → String →  M i (inj i SOpen) FH
     fread : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → M i i (Maybe Char)
     fwrite : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → Char → M i i FH
     fclose : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open  → (inj : InjF I Closed I) → M i (inj i SClosed) ⊤
-    throw : ∀ {i : I} {A : Set} (inj : InjL I Flag I) → M i (inj i Unhandled) A
-    catch : ∀ {i j : I} {A : Set} → M i j A → (resetFlag : InjL I Flag I) → (∀ {k : I} → M k j A) → M i j A
+    throw : ∀ {i : I} {l} {A : Set l} (inj : InjL I Flag I) → M i (inj i Unhandled) A
+    catch : ∀ {i j : I} {l} {A : Set l} → M i j A → (failFlag  : InjC I I) → (resetFlag : InjC I I) → (∀ {k : I} → M k (failFlag j) A ⊎ M k (resetFlag j) A) → M i (failFlag j) A ⊎ M i (resetFlag j) A
 
-
-M : State → State → Set → Set₁
+M : ∀ {l} → State → State → Set l → Set (suc zero ⊔ l)
 M i j A = (s : State) → s ≡ i → Σ[ s' ∈ State ] (s' ≡ j) × Maybe A
 
 open PMonad
@@ -92,10 +103,9 @@ combinedState .Combined.fread getOC _ fh s eq with uncons fh
 combinedState .Combined.fwrite getOC _ fh c s eq = s , (eq , (just (fh ++ fromChar c)))
 combinedState .Combined.fclose getOC _ setStatus s eq = setStatus s SClosed , (cong (λ st → setStatus st SClosed) eq , just tt)
 combinedState .Combined.throw setFlag s eq = setFlag s Unhandled , cong (λ x → setFlag x Unhandled) eq , nothing
-combinedState .Combined.catch ma resetFlag mb s eq with ma s eq
-... | s' , eq' , just x = s' , eq' , just x
-... | s' , eq' , nothing = mb (resetFlag s' OK) (cong (λ st → resetFlag st OK) eq')
-
+combinedState .Combined.catch {i} {j} x failFlag resetFlag h with x i refl
+... | (fst , fst₂ , OK) , eq' , a = inj₂ (λ _ _ → (resetFlag (fst , fst₂ , OK)) , cong resetFlag eq' , a)
+... | (fst , fst₂ , Unhandled) , eq' , a = h
 
 
 
@@ -103,8 +113,8 @@ _>>>=_ : ∀ {i j k} {A B : Set} → M i j A → (A → M j k B) → M i k B
 _>>>=_ = PMonad._>>=_ pmonadState
 
 
-getMem : ProjL State ℕ
-getMem (_ , _ , _) = 0
+getMem : ProjL State Set 
+getMem (n , _ , _) = n
 
 setMem : InjL State ℕ State
 setMem (_ , oc , flag) val = (ℕ , oc , flag)
@@ -122,7 +132,7 @@ setClosed (a , _ , flag) _ = (a , Closed , flag)
 
 open Combined combinedState
 
-readMem : ∀ {i : State} → M i i ℕ
+readMem : ∀ {i : State} → M i i Set
 readMem = look getMem
 
 writeMem : ∀ {i : State} → (val : ℕ) → M i (setMem i val) ⊤
@@ -142,7 +152,6 @@ writeFile fh c = fwrite getStatus refl fh c
 
 
 
------------------SKLA KIGGES PÅ-----------------
 setMemFH : InjL State ⊤ State
 setMemFH (_ , oc , flag) _ = (FH , oc , flag)
 
@@ -156,25 +165,79 @@ finishFromOpen {n} =
   set setMemFH tt
 
 ReadOpenSetClose : ∀ {i : State} → M i (FH , Closed , OK ) ⊤
-ReadOpenSetClose (fst , Open , OK) x =
-  finishFromOpen {fst} (fst , Open , OK) refl
-ReadOpenSetClose (fst , Closed , OK) x =
-  (openFile {fst} "" >>>= λ fh → finishFromOpen {fst})
-    (fst , Closed , OK) refl
-ReadOpenSetClose (fst , Open , Unhandled) x =
-  (set setOK tt >>>= λ _ → finishFromOpen {fst})
-    (fst , Open , Unhandled) refl
-ReadOpenSetClose (fst , Closed , Unhandled) x =
-  (set setOK tt >>>= λ _ → openFile {fst} "" >>>= λ fh → finishFromOpen {fst})
-    (fst , Closed , Unhandled) refl
+ReadOpenSetClose (fst , Open , OK) x = finishFromOpen {fst} (fst , Open , OK) refl
+ReadOpenSetClose (fst , Closed , OK) x = (openFile {fst} "" >>>= λ fh → finishFromOpen {fst}) (fst , Closed , OK) refl
+ReadOpenSetClose (fst , Open , Unhandled) x = (set setOK tt >>>= λ _ → finishFromOpen {fst}) (fst , Open , Unhandled) refl
+ReadOpenSetClose (fst , Closed , Unhandled) x = (set setOK tt >>>= λ _ → openFile {fst} "" >>>= λ fh → finishFromOpen {fst}) (fst , Closed , Unhandled) refl
 
 
 
--------------------------------------------------
+
+setFlagOK : InjC State State 
+setFlagOK (mem , oc , _) = (mem , oc , OK)
+
+setFlagUN : InjC State State
+setFlagUN (mem , oc , _) = (mem , oc , Unhandled)
 
 
-M1 : State → State → Set → Set₁
-M1 i j A = (s : State) → s ≡ i → Maybe (Σ[ s' ∈ State ] (s' ≡ j) × A)
+setFlag : InjL State Flag State
+setFlag (mem , oc , _) f = (mem , oc , f)
 
-monadState1 : PMonad {State} {M1}
-pmonadState1 = {!   !}
+
+
+throwsAway : ∀ {n : Set} {oc : OC} → M (n , oc , OK) (n , oc , Unhandled) ⊤
+throwsAway = throw setFlag
+
+
+
+
+
+throwprogram : ∀ {n : Set} → M (n , Closed , OK) (n , Open , Unhandled) ⊤
+throwprogram s x = ((openFile "hello.txt") >>>= λ fh → throw setFlag) s x
+
+
+setFlagHandeler : InjL State Flag State
+setFlagHandeler (mem , oc , _) f = (mem , Closed , f)
+
+
+-- handler :  ∀ {n : Set} {oc : OC} {fl : Flag} → (M (n , oc , fl) (n , Closed , Unhandled) ⊤) ⊎ (M (n , oc , fl) (n , Closed , OK) ⊤)
+-- handler {n} {Open} {OK} = inj₂ λ s x → closeFile s x
+-- handler {n} {Closed} {OK} = inj₂ λ s z → s , z , just tt
+-- handler {n} {Open} {Unhandled} = inj₁ (throw setFlagHandeler)
+-- handler {n} {Closed} {Unhandled} = inj₂ (set setFlag OK) 
+
+
+handler′ : ∀ {n : Set} {k : State}
+         → M k (n , Closed , Unhandled) ⊤ ⊎ M k (n , Closed , OK) ⊤
+handler′ {n} {fst , Open , OK} = inj₂ λ s z → (n , Closed , OK) , refl , just tt
+handler′ {n} {fst , Closed , OK} = inj₂ λ s z → (n , Closed , OK) , refl , nothing
+handler′ {n} {fst , Open , Unhandled} = inj₁ (λ _ _ → throw setFlagHandeler (n , Open , Unhandled) refl)
+handler′ {n} {fst , Closed , Unhandled} = inj₂ λ s x → (n , Closed , OK) , refl , nothing
+
+
+failFlag : InjC State State
+failFlag (n , oc , fl) = (n , Closed , Unhandled)
+
+resetFlag : InjC State State
+resetFlag (n , oc , fl) = (n , Closed , OK)
+
+
+catchExample : ∀ {n : Set} → (M (n , Closed , OK) (n , Closed , Unhandled) ⊤) ⊎ (M (n , Closed , OK) (n , Closed , OK) ⊤)
+catchExample {n} = catch throwprogram failFlag resetFlag handler′
+
+
+throwProgram′ :
+  ∀ {n : Set} {oc : OC} {fl : Flag} →
+  M (n , oc , fl) (n , Closed , Unhandled) ⊤
+throwProgram′ {n} {oc} {fl} = throw setFlagHandeler
+
+catchExample′ :
+  ∀ {n : Set} {oc : OC} {fl : Flag} →
+  M (n , oc , fl) (n , Closed , Unhandled) ⊤ ⊎
+  M (n , oc , fl) (n , Closed , OK) ⊤
+catchExample′ {n} {oc} {fl} =
+  catch (throwProgram′ {n} {oc} {fl}) failFlag resetFlag handler′
+
+-- Synes ikke flag instance giver mening, fordi throw skal ændrer typen til Unhandled men så typetjeker vi ikke mere med programerne. vi vil gerne have at chatce skal fixe Unhandled til OK men man kan ikke nædvendigvis lave en handeler som fixer alle cases og derfor vil man nok godt have den siger throw.
+-- men denne inplimentasion kan man ikke udfølge begge love på en gang catch throw1 :: catch (throw e) h ≡ h e
+-- catch throw2 :: catch t throw ≡ t 
