@@ -35,7 +35,7 @@ State = Set × OC × Flag
 
 
 FH : Set
-FH = String
+FH = ℕ
 
 record PMonad {I : Set₁} {M : ∀ {l} → I → I → Set l → Set (suc zero ⊔ l)} : Setω  where
   field
@@ -72,7 +72,7 @@ record Combined {I : Set₁} {M : ∀ {l} → I → I → Set l → Set (suc zer
     set  : ∀ {i : I} {l} {a : Set l} (inj : InjL I a I) (val : a) → M i (inj i val) ⊤
     fopen : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Closed → (inj : InjF I Open I) → String →  M i (inj i SOpen) FH
     fread : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → M i i (Maybe Char)
-    fwrite : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → Char → M i i FH
+    fwrite : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open → FH → Char → M i i ⊤
     fclose : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open  → (inj : InjF I Closed I) → M i (inj i SClosed) ⊤
     throw : ∀ {i : I} {l} {A : Set l} (inj : InjL I Flag I) → M i (inj i Unhandled) A
     catch  : ∀ {i j : I} {l} {A : Set l} → M i j A → (resetFlag : InjC I I) → M (resetFlag i) (resetFlag j) A → M i (resetFlag j) A
@@ -94,16 +94,18 @@ combinedState : Combined {State} {M}
 combinedState .Combined.pmonad = pmonadState
 combinedState .Combined.look getMem s eq = just (s , eq , getMem s)
 combinedState .Combined.set setMem val s eq = just (setMem s val , cong (λ st → setMem st val) eq , tt)
-combinedState .Combined.fopen getOC _ setStatus fh s eq = just ((setStatus s SOpen) , cong (λ st → setStatus st SOpen) eq , fh)
-combinedState .Combined.fread getOC _ fh s eq with uncons fh
-... | just (c , _) = just (s , eq , just c)
-... | nothing = just (s , eq , nothing)
-combinedState .Combined.fwrite getOC _ fh c s eq = just (s , eq , (fh ++ fromChar c))
+combinedState .Combined.fopen getOC _ setStatus fh s eq = just ((setStatus s SOpen) , cong (λ st → setStatus st SOpen) eq , 0)
+combinedState .Combined.fread getOC _ handle s refl = just (s , (refl , just 'a'))
+--combinedState .Combined.fread getOC _ fh s eq with uncons fh
+--... | just (c , _) = just (s , eq , just c)
+--... | nothing = just (s , eq , nothing)
+combinedState .Combined.fwrite getOC _ fh c s eq = just (s , eq , tt)
 combinedState .Combined.fclose getOC _ setStatus s eq = just (setStatus s SClosed , cong (λ st → setStatus st SClosed) eq , tt)
 combinedState .Combined.throw setFlag s eq = nothing
 combinedState .Combined.catch ma resetFlag mb s refl with ma s refl
 ... | just (s' , eq' , a) = just ((resetFlag s') , (cong resetFlag eq') , a)
 ... | nothing = mb (resetFlag s) refl
+
 
 
 _>>>=_ = pmonadState .PMonad._>>=_
@@ -152,7 +154,7 @@ closeFile = fclose getStatus refl setClosed
 readFile : ∀ {n : Set} → FH → M (n , Open , OK) (n , Open , OK) (Maybe Char)
 readFile fh = fread getStatus refl fh
 
-writeFile : ∀ {n : Set} → FH → Char → M (n , Open , OK) (n , Open , OK) FH
+writeFile : ∀ {n : Set} → FH → Char → M (n , Open , OK) (n , Open , OK) ⊤
 writeFile fh c = fwrite getStatus refl fh c
 
 ReadOpenSetClose : ∀ {n : Set} → M (n , Closed , OK) (ℕ , Closed , OK) ⊤
@@ -170,11 +172,6 @@ failingProg s eq = throw setFlag s eq
 setFlagHandler : InjL State Flag State
 setFlagHandler (mem , oc , _) f = (mem , Closed , f)
 
--- handler :  ∀ {n : Set} {oc : OC} {fl : Flag} → (M (n , oc , fl) (n , Closed , Unhandled) ⊤) ⊎ (M (n , oc , fl) (n , Closed , OK) ⊤)
--- handler {n} {Open} {OK} = inj₂ (λ s x → closeFile s x)
--- handler {n} {Open} {Unhandled} = inj₁ (throw setFlagHandler)
--- handler {n} {Closed} {OK} = inj₂ (λ s x → just (s , (x , tt)))
--- handler {n} {Closed} {Unhandled} = inj₂ (set setFlag OK)
 
 
 handler : ∀ {n : Set} {oc : OC} {fl : Flag} → M (n , oc , fl) (n , Closed , OK) ⊤
@@ -220,4 +217,3 @@ rethrowingHandler s eq = throw setFlag s eq
 
 nestedCatchProgram : ∀ {n : Set} → M (n , Closed , OK) (n , Closed , OK) ⊤
 nestedCatchProgram = catch (catch failingProg setFlagUN rethrowingHandler) setFlagOK handler
-
