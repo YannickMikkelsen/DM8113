@@ -80,6 +80,7 @@ record Combined {I : Set₁} {M : ∀ {l} → I → I → Set l → Set (suc zer
     fclose : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open  → (inj : InjF I Closed I) → M i (inj i SClosed) ⊤
     throw : ∀ {i : I} {l} {A : Set l} (inj : InjL I Flag I) → M i (inj i Unhandled) A
     catch : ∀ {i j : I} {l} {A : Set l} → M i j A → (failFlag  : InjC I I) → (resetFlag : InjC I I) → (∀ {k : I} → M k (failFlag j) A ⊎ M k (resetFlag j) A) → M i (failFlag j) A ⊎ M i (resetFlag j) A
+    -- catch : ∀ {i j k : I} {l} {A : Set l} → M i j A → M k j A → (unk : InjC I I) → M i (unk j) A
 
 M : ∀ {l} → State → State → Set l → Set (suc zero ⊔ l)
 M i j A = (s : State) → s ≡ i → Σ[ s' ∈ State ] (s' ≡ j) × Maybe A
@@ -106,6 +107,7 @@ combinedState .Combined.throw setFlag s eq = setFlag s Unhandled , cong (λ x �
 combinedState .Combined.catch {i} {j} x failFlag resetFlag h with x i refl
 ... | (fst , fst₂ , OK) , eq' , a = inj₂ (λ _ _ → (resetFlag (fst , fst₂ , OK)) , cong resetFlag eq' , a)
 ... | (fst , fst₂ , Unhandled) , eq' , a = h
+
 
 
 
@@ -187,10 +189,6 @@ setFlag (mem , oc , _) f = (mem , oc , f)
 
 throwsAway : ∀ {n : Set} {oc : OC} → M (n , oc , OK) (n , oc , Unhandled) ⊤
 throwsAway = throw setFlag
-
-
-
-
 
 throwprogram : ∀ {n : Set} → M (n , Closed , OK) (n , Open , Unhandled) ⊤
 throwprogram s x = ((openFile "hello.txt") >>>= λ fh → throw setFlag) s x

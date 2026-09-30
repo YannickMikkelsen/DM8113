@@ -76,11 +76,11 @@ record Combined {I : Set₁} {M : ∀ {l} → I → I → Set l → Set (suc zer
     fclose : ∀ {i : I} → (getOC : ProjF I) → getOC i ≡ Open  → (inj : InjF I Closed I) → M i (inj i SClosed) ⊤
     throw : ∀ {i : I} {l} {A : Set l} (inj : InjL I Flag I) → M i (inj i Unhandled) A
     catch  : ∀ {i j : I} {l} {A : Set l} → M i j A → (resetFlag : InjC I I) → M (resetFlag i) (resetFlag j) A → M i (resetFlag j) A
---    catch : ∀ {i j : I} {l} {A : Set l} → M i j A → (resetFlag : InjC I I) → (∀ {k : I} → M k (resetFlag j) A) → M i (resetFlag j) A
+
 
 M : ∀ {l} → State → State → Set l → Set (suc zero ⊔ l)
 M i j A = (s : State) → s ≡ i → Maybe (Σ[ s' ∈ State ] (s' ≡ j) × A)
-
+-- er brobart i unificasion algoritem hvor man gerne vil genstarte staten
 
 pmonadState : PMonad {State} {M}
 pmonadState .PMonad.pure x s eq = just (s , eq , x)
@@ -107,6 +107,24 @@ combinedState .Combined.catch ma resetFlag mb s refl with ma s refl
 
 
 _>>>=_ = pmonadState .PMonad._>>=_
+
+
+MP : (State → Set) → State → Set₁
+MP P i = (s : State) → s ≡ i → Maybe (Σ[ s' ∈ State ] P s')
+
+
+_?>=_ : ∀ {P Q i} → MP P i → (∀ {j} → P j → MP Q j) → MP Q i
+(m ?>= f) s eq with m s eq
+... | nothing        = nothing
+... | just (s' , p)  = f p s' refl
+
+catchP : ∀ {P Q i} (resetFlag : InjC State State)
+       → MP P i → MP Q (resetFlag i) → MP (λ s → P s ⊎ Q s) i
+catchP resetFlag ma mb s eq with ma s eq
+... | just (s' , p) = just (s' , inj₁ p)
+... | nothing with mb (resetFlag s) (cong resetFlag eq)
+...   | just (s'' , q) = just (s'' , inj₂ q)
+...   | nothing        = nothing
 
 
 open Combined combinedState
@@ -170,11 +188,6 @@ failingProg s eq = throw setFlag s eq
 setFlagHandler : InjL State Flag State
 setFlagHandler (mem , oc , _) f = (mem , Closed , f)
 
--- handler :  ∀ {n : Set} {oc : OC} {fl : Flag} → (M (n , oc , fl) (n , Closed , Unhandled) ⊤) ⊎ (M (n , oc , fl) (n , Closed , OK) ⊤)
--- handler {n} {Open} {OK} = inj₂ (λ s x → closeFile s x)
--- handler {n} {Open} {Unhandled} = inj₁ (throw setFlagHandler)
--- handler {n} {Closed} {OK} = inj₂ (λ s x → just (s , (x , tt)))
--- handler {n} {Closed} {Unhandled} = inj₂ (set setFlag OK)
 
 
 handler : ∀ {n : Set} {oc : OC} {fl : Flag} → M (n , oc , fl) (n , Closed , OK) ⊤

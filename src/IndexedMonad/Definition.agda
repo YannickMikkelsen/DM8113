@@ -104,3 +104,4 @@ module Bind {I : Set} {M : Pred I → Pred I} (MonadM : IMonad M) where
   c =>= f = c ?>= λ { (V a) → f a }
 
   infixl 1 _=>=_
+  
