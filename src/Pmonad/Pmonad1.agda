@@ -110,7 +110,6 @@ combinedState .Combined.catch {i} {j} x failFlag resetFlag h with x i refl
 
 
 
-
 _>>>=_ : ∀ {i j k} {A B : Set} → M i j A → (A → M j k B) → M i k B
 _>>>=_ = PMonad._>>=_ pmonadState
 

@@ -109,8 +109,6 @@ combinedState .Combined.catch ma resetFlag mb s refl with ma s refl
 _>>>=_ = pmonadState .PMonad._>>=_
 
 
-
-
 open Combined combinedState
 
 setFlagOK : InjC State State
