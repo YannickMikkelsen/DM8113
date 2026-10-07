@@ -51,9 +51,6 @@ prog = op (i₁ (catch {A = ⊤}
                  (λ _ → pure tt₁)))
 
 
-_∘_ : (Set₁ → Set₁) → (Set₁ → Set₁) → (Set₁ → Set₁)
-(F ∘ G) X = F (G X)
-infixr 9 _∘_
 
 JΣ : (Σ : Set₁ → Set₁) → (R : Set₁) → Set → Set₁
 JΣ Σ R X = X → Free Σ (Maybe R)
@@ -72,7 +69,6 @@ JΣ Σ R X = X → Free Σ (Maybe R)
 -- hexc (op (i₂ x)) = op (fmap hexc x)
 
 
--- dette skal kigges på er lidt :(
 
 {-# TERMINATING #-}
 go : ∀ {Σ A} ⦃ _ : Functor Σ ⦄
