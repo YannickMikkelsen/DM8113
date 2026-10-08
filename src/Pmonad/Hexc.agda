@@ -82,3 +82,12 @@ go (op (i₂ x))             hd = op (fmap (λ m → go m hd) x)
 hexc : ∀ {Σ A} ⦃ _ : Functor Σ ⦄
      → Free (Exc (JΣ Σ A) + Σ) A → Free Σ (Maybe A)
 hexc m = go m (pure nothing)
+
+
+
+
+------------- test
+
+-- Skriv test her 
+
+-- skriv det om til en algebra FOLD!!!!!!!
