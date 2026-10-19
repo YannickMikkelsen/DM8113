@@ -5,7 +5,6 @@ open import Data.Maybe using (Maybe; just; nothing)
 open import Data.Bool using (Bool; if_then_else_)
 open import Level using (Level; _⊔_; suc; zero)
 
--- open import Level using (Lift; lift; lsuc; lzero)
 open import Data.Product using (_×_; _,_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
@@ -179,7 +178,17 @@ module Eqs (P : Set) (Ar : P → Set) (A : Set₁) where
   eq2-ok : ∀ X → respects {C = H Σ A} algH (eq2 X)
   eq2-ok X ρ t = refl
 
+
+
   module Bind (X : Set) (Y V : Set₁) where
+
+    -- -- catch (λ j → m >>= λ y → end j y) throw k ≡ m >>= k
+    -- eq3 : Equation S (Free S (Lift (suc zero) X) × (X → Free S V)) V
+    -- eq3 = (λ{ (m , k) → op (i₁ (catch {A = X}
+    --                           (λ j → m >>= λ y → op (i₁ (end j (lower y))))
+    --                           (op (i₁ throw))
+    --                           k)) })
+    -- ≐ (λ{ (m , k) → m >>= λ y → k (lower y) })
 
     -- end j x >>= f ≡ end j x
     eq4 : Equation S (J X × X × (Y → Free S V)) V
@@ -247,8 +256,8 @@ module Eqs (P : Set) (Ar : P → Set) (A : Set₁) where
               op (i₁ (opr p1 (λ a1 →
                 if a1 == b then pure (k2 a2) else pure (k1 a1))))))))
 
---    eqComm-ok : respects algH eqComm
---    eqComm-ok = ?
+  --  eqComm-ok : respects algH eqComm
+  --  eqComm-ok = ?
 
     -- eq8 : Equation S (Ar p → Free S V) V
     -- eq8 = (λ f → (op (i₁ throw)) >>= λ _ → op (i₂ (opr p f))) ≐ λ f → op (i₁ throw)
