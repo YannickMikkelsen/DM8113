@@ -1,12 +1,22 @@
+
+-- {-# OPTIONS --type-in-type #-}
 module Pmonad.Hexc where
 
 open import Data.Unit  using (⊤; tt)
 open import Data.Maybe using (Maybe; just; nothing)
 open import Data.Bool using (Bool; if_then_else_)
-open import Level using (Level; _⊔_; suc; zero)
-
+open import Level using (Level; _⊔_; suc; zero; Lift; lift; lower)
+open import Relation.Binary.PropositionalEquality
+  using (_≡_; refl; cong; cong₂; trans)
 open import Data.Product using (_×_; _,_)
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+
+postulate
+  funext : {A : Set} {B : A → Set} {f g : (x : A) → B x} → (∀ x → f x ≡ g x) → f ≡ g
+
+cong₃ : {A B C D : Set} (f : A → B → C → D)
+        {x y : A} {u v : B} {s t : C}
+      → x ≡ y → u ≡ v → s ≡ t → f x u s ≡ f y v t
+cong₃ f refl refl refl = refl
 
 record ⊤₁ : Set₁ where
   constructor tt₁
@@ -155,6 +165,10 @@ instance
 
 
 
+
+
+
+
 module Eqs (P : Set) (Ar : P → Set) (A : Set₁) where
   Σ = Opr P Ar
   J = JΣ Σ A
@@ -179,17 +193,8 @@ module Eqs (P : Set) (Ar : P → Set) (A : Set₁) where
   eq2-ok X ρ t = refl
 
 
-
   module Bind (X : Set) (Y V : Set₁) where
-
-    -- -- catch (λ j → m >>= λ y → end j y) throw k ≡ m >>= k
-    -- eq3 : Equation S (Free S (Lift (suc zero) X) × (X → Free S V)) V
-    -- eq3 = (λ{ (m , k) → op (i₁ (catch {A = X}
-    --                           (λ j → m >>= λ y → op (i₁ (end j (lower y))))
-    --                           (op (i₁ throw))
-    --                           k)) })
-    -- ≐ (λ{ (m , k) → m >>= λ y → k (lower y) })
-
+    
     -- end j x >>= f ≡ end j x
     eq4 : Equation S (J X × X × (Y → Free S V)) V
     eq4 = (λ{ (j , x , f) → (op (i₁ (end j x))) >>= f }) ≐ (λ{ (j , x , f) → op (i₁ (end j x)) })
@@ -210,6 +215,71 @@ module Eqs (P : Set) (Ar : P → Set) (A : Set₁) where
 
     eq6-ok : respects algH eq6
     eq6-ok ρ (p , h , k , f) = refl
+
+    data NoPure {R : Set₁} : Free S R → Set₁ where   -- sluter altid på end eller throw
+      np-throw : NoPure (op (i₁ throw))
+      np-end   : ∀ {W} (j : J W) (y : W) → NoPure (op (i₁ (end j y)))
+      np-op    : ∀ c (x : Ar c → Free S R) → (∀ a → NoPure (x a))
+               → NoPure (op (i₂ (opr c x)))
+      np-catch : ∀ {W} (p : J W → Free S R) (h : Free S R) (k : W → Free S R)
+               → (∀ j → NoPure (p j)) → NoPure h → (∀ a → NoPure (k a))
+               → NoPure (op (i₁ (catch p h k)))
+
+    data WF {R : Set₁} : Free S R → Set₁ where
+      wf-pure  : ∀ y → WF (pure y)
+      wf-throw : WF (op (i₁ throw))
+      wf-end   : ∀ {W} (j : J W) (y : W) → WF (op (i₁ (end j y)))
+      wf-op    : ∀ c (x : Ar c → Free S R) → (∀ a → WF (x a))
+               → WF (op (i₂ (opr c x)))
+      wf-catch : ∀ {W} (p : J W → Free S R) (h : Free S R) (k : W → Free S R)
+               → (∀ j → NoPure (p j)) → WF h → (∀ a → WF (k a))
+               → WF (op (i₁ (catch p h k)))
+
+    record WFTerm : Set₁ where
+      constructor wft
+      field
+        term : Free S X
+        wf   : WF term
+
+
+    -- catch (λ j → p >>= end j) throw k ≡ p >>= k    (p veldannet)
+    eq3 : Equation S (WFTerm × (X → Free S Y)) Y
+    eq3 = (λ{ (wft p _ , k) → op (i₁ (catch {A = X}
+                                         (λ j → p >>= λ x → op (i₁ (end j x)))
+                                         (op (i₁ throw))
+                                         k)) })
+          ≐ (λ{ (wft p _ , k) → p >>= k })
+
+       
+    np-bind : ∀ {R Z : Set₁} (g : Z → H Σ A) (f₁ f₂ : R → Free S Z) {q : Free S R}
+            → NoPure q → fold g algH (q >>= f₁) ≡ fold g algH (q >>= f₂)
+    np-bind g f₁ f₂ np-throw = refl
+    np-bind g f₁ f₂ (np-end j y) = refl
+    np-bind g f₁ f₂ (np-op c x ih) =
+      cong (λ F → λ hd → op (opr c (λ b → F b hd)))
+           (funext (λ b → np-bind g f₁ f₂ (ih b)))
+    np-bind g f₁ f₂ (np-catch b h k nb nh nk) =
+      cong₃ (λ B Hh K → λ hd → B (λ x → K x hd) (Hh hd))
+            (funext (λ j → np-bind g f₁ f₂ (nb j)))
+            (np-bind g f₁ f₂ nh)
+            (funext (λ a → np-bind g f₁ f₂ (nk a)))
+
+    main : ∀ (ρ : Y → H Σ A) (k : X → Free S Y) {p : Free S X} → WF p → ∀ hd
+         → fold ρ algH (p >>= λ x → op (i₁ (end (λ a → fold ρ algH (k a) hd) x))) hd
+           ≡ fold ρ algH (p >>= k) hd
+    main ρ k (wf-pure y)    hd = refl
+    main ρ k wf-throw       hd = refl
+    main ρ k (wf-end j y)   hd = refl
+    main ρ k (wf-op c x ih) hd = cong (λ F → op (opr c F)) (funext (λ b → main ρ k (ih b) hd))
+    main ρ k (wf-catch b h' k'' nb wh wk) hd =
+      cong₃ (λ B Jv Hv → B Jv Hv)
+            (funext (λ j → np-bind ρ (λ x → op (i₁ (end (λ a → fold ρ algH (k a) hd) x))) k (nb j)))
+            (funext (λ x → main ρ k (wk x) hd))
+            (main ρ k wh hd)
+
+    eq3-ok : respects algH eq3
+    eq3-ok ρ (wft p wf , k) = funext (λ hd → main ρ k wf hd)
+
 
   module Inter (p : P) (X : Set) (Y V : Set₁) where
 
@@ -358,3 +428,67 @@ module Tests where
   -- eq5: throw >>= f ≡ throw
   t-eq5 : run (throw' >>= λ _ → fire' (pure tt₁)) ≡ fail
   t-eq5 = refl
+
+
+
+    ----------------------------------------------------------
+  -- eq3:  catch (λ j → m >>= λ y → end j y) throw k  ≡  m >>= k
+
+  lhs3 : T → (⊤ → T) → T
+  lhs3 m k = catch' (λ j → m >>= λ _ → end' j) throw' k
+
+  rhs3 : T → (⊤ → T) → T
+  rhs3 m k = m >>= λ _ → k tt
+
+  -- m med indre catch: p kaster, så den indre handler (fire) kører
+  m-fire : T
+  m-fire = catch' (λ j → throw') (fire' (pure tt₁)) (λ _ → pure tt₁)
+
+  -- m med indre catch: p afslutter, så den indre handler kører IKKE
+  m-end : T
+  m-end = catch' (λ j → end' j) (fire' (pure tt₁)) (λ _ → pure tt₁)
+
+  -- A: m = pure, k kaster
+  t-eq3-A : run (lhs3 (pure tt₁) (λ _ → throw')) ≡ fail
+  t-eq3-A = refl
+  t-eq3-A' : run (rhs3 (pure tt₁) (λ _ → throw')) ≡ fail
+  t-eq3-A' = refl
+
+  -- B: m = throw (handleren i eq3 er throw, så resultatet er nothing)
+  t-eq3-B : run (lhs3 throw' (λ _ → fire' (pure tt₁))) ≡ fail
+  t-eq3-B = refl
+  t-eq3-B' : run (rhs3 throw' (λ _ → fire' (pure tt₁))) ≡ fail
+  t-eq3-B' = refl
+
+  -- C: indre handler kører, k kaster
+  t-eq3-C : run (lhs3 m-fire (λ _ → throw')) ≡ fired fail
+  t-eq3-C = refl
+  t-eq3-C' : run (rhs3 m-fire (λ _ → throw')) ≡ fired fail
+  t-eq3-C' = refl
+
+  -- D: indre handler kører, k har en synlig effekt
+  t-eq3-D : run (lhs3 m-fire (λ _ → fire' (pure tt₁))) ≡ fired (fired ok)
+  t-eq3-D = refl
+  t-eq3-D' : run (rhs3 m-fire (λ _ → fire' (pure tt₁))) ≡ fired (fired ok)
+  t-eq3-D' = refl
+
+  -- E: indre p afslutter, handler kører ikke, k kaster
+  t-eq3-E : run (lhs3 m-end (λ _ → throw')) ≡ fail
+  t-eq3-E = refl
+  t-eq3-E' : run (rhs3 m-end (λ _ → throw')) ≡ fail
+  t-eq3-E' = refl
+
+  -- Direkte sammenligning af begge sider
+  t-eq3-C=  : run (lhs3 m-fire (λ _ → throw')) ≡ run (rhs3 m-fire (λ _ → throw'))
+  t-eq3-C=  = refl
+
+
+    -- indre catch hvis p vender tilbage med en bar pure (ikke via end j)
+  m-pure : T
+  m-pure = catch' (λ j → pure tt₁) (fire' (pure tt₁)) (λ _ → pure tt₁)
+
+  t-eq3-bad-lhs : run (lhs3 m-pure (λ _ → throw')) ≡ fail
+  t-eq3-bad-lhs = refl
+
+  t-eq3-bad-rhs : run (rhs3 m-pure (λ _ → throw')) ≡ fired fail
+  t-eq3-bad-rhs = refl
