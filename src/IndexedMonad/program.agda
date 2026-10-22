@@ -69,9 +69,6 @@ PRO-IMonad .iextend x (FThrow x₁ k₁) = FThrow x₁ ((λ z → PRO-IMonad .ie
 PRO-IMonad .iextend x (FHandle k₁) = FHandle ((λ z → PRO-IMonad .iextend x (k₁ z)))
 
 
--- _»=_ : ∀ {P Q : Pred State} {st} → :∗ PRO P st → (P :→ :∗ PRO Q) → :∗ PRO Q st
--- m »= f = PRO-IMonad .iextend f m
--- infixl 1 _»=_
 
 open Bind PRO-IMonad
 
@@ -105,23 +102,3 @@ prog1 =
   Ret (V (v + x))
 
 
--- set v {i} -> throw v {i} ; handel v {i} = set v {i}
-
--- look {i} -> throw v {i} ; handel v {i} -> look {i} = look v {i}
-
-
-
--- prog =
---   incr »= λ _ →              -- look(v) → set(v+1)  — cellen bliver v+1
---   throw v »= λ _ →
---   handle »= λ { (V x) →      -- burde denne 'x' se v+1, eller den ORIGINALE v?
---   set x »= λ _ →
---   look }
-
-
-
--- prog-reduceret =
---   look »= λ { (V v) →
---   set (v + 1) »= λ _ →
---   set x »= λ _ →              -- men hvilken x?!
---   look }

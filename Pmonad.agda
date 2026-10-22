@@ -42,7 +42,7 @@ _>>=_ : ∀ {l : Level} {Σ : Set l → Set l} {A B : Set l} ⦃ _ : Functor Σ 
 pure x >>= k = k x
 op f   >>= k = op (fmap (_>>= k) f)
 
--- (F + G) K
+-- (F + G)
 data _+_ (F G : Set₁ → Set₁) (K : Set₁) : Set₁ where
   i₁ : F K → (F + G) K
   i₂ : G K → (F + G) K
