@@ -172,8 +172,6 @@ instance
 
 
 
-
-
 module Eqs (P : Set) (Ar : P → Set) (A : Set₁) where
   Σ = Opr P Ar
   J = JΣ Σ A
