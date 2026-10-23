@@ -102,6 +102,7 @@ JΣ Σ R X = X → Free Σ (Maybe R)
 -- hexc m = go m (pure nothing)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
+-- Lave om til en algebra
 
 {-# TERMINATING #-}
 fold : ∀ {l : Level} {Σ : Set l → Set l} {A B : Set l} ⦃ _ : Functor Σ ⦄ → (A → B) → (Σ B → B) → Free Σ A → B
@@ -132,7 +133,7 @@ algH (i₂ x)           = λ hd → op (fmap (λ m → m hd) x)
 hexc' : ∀ {Σ A} ⦃ _ : Functor Σ ⦄ → Free (Exc (JΣ Σ A) + Σ) A → Free Σ (Maybe A)
 hexc' m = fold genH algH m (pure nothing)
 
---------------------------------------------------------
+ 
 
 
 infix 4 _≐_
