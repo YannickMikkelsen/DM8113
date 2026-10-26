@@ -30,7 +30,7 @@ module Gen (P : Set) (Ar : P → Set) (D : Set₁) (αD : Opr P Ar D → D) wher
   algE (i₁ (catch p h k)) = λ hd → p (λ x → k x hd) (h hd)
   algE (i₂ x)             = λ hd → αD (fmap (λ m → m hd) x)
 
-  ----------------------------------------------------------------------
+  
   -- eq1, eq2
 
   data CVar (X : Set) : Set₁ where
@@ -53,7 +53,7 @@ module Gen (P : Set) (Ar : P → Set) (D : Set₁) (αD : Opr P Ar D → D) wher
   eq2-ok : ∀ X → respects {C = C} algE (eq2 X)
   eq2-ok X ρ t = refl
 
-  ----------------------------------------------------------------------
+  
   -- eq3 - eq6  (bind)
 
   module Bind (X : Set) (Y V : Set₁) where
@@ -80,13 +80,6 @@ module Gen (P : Set) (Ar : P → Set) (D : Set₁) (αD : Opr P Ar D → D) wher
 
     eq6-ok : respects {C = C} algE eq6
     eq6-ok ρ (p , h , k , f) = refl
-
-    eq-end : Equation S (J X × X × Free S Y × (X → Free S Y)) Y
-    eq-end = (λ{ (i , x , h , k) → op (i₁ (catch (λ j → op (i₁ (end i x))) h k)) })
-             ≐ (λ{ (i , x , h , k) → op (i₁ (end i x)) })
-
-    eq-end-ok : respects {C = C} algE eq-end
-    eq-end-ok ρ (i , x , h , k) = refl
 
     data NoPure {R : Set₁} : Free S R → Set₁ where   -- slutter altid på end eller throw
       np-throw : NoPure (op (i₁ throw))
@@ -180,3 +173,11 @@ module Gen (P : Set) (Ar : P → Set) (D : Set₁) (αD : Opr P Ar D → D) wher
 
     eq8-ok : respects {C = C} algE eq8
     eq8-ok ρ f = refl
+
+    -- end j x >>= (λ _ → opr p f) ≡ end j x
+    eq9 : Equation S (J X × X × (Ar p → Free S V)) V
+    eq9 = (λ{ (j , x , f) → (op (i₁ (end j x))) >>= λ (_ : Y) → op (i₂ (opr p f)) })
+          ≐ (λ{ (j , x , f) → op (i₁ (end j x)) })
+
+    eq9-ok : respects {C = C} algE eq9
+    eq9-ok ρ (j , x , f) = refl
