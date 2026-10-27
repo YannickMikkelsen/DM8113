@@ -56,6 +56,7 @@ module FileAlg (S : Set) (A : Set₁) where
   data FV : Set₁ where
     tv : FV
     kr : String → FV
+    kr2 : String → String → FV
 
   ----------------------------------------------------------------------
   -- State-love
@@ -120,6 +121,34 @@ module FileAlg (S : Set) (A : Set₁) where
   eq-write-read-ok : respects {C = C} algD eq-write-read
   eq-write-read-ok ρ s = refl
 
+<<<<<<< HEAD
+=======
+  -- read ; t ≡ t     
+  eq-read-ignore : Equation Full ⊤ FV
+  eq-read-ignore = (λ _ → op (i₂ (i₂ (fread (λ _ → pure tv)))))
+                  ≐ (λ _ → pure tv)
+
+  eq-read-ignore-ok : respects {C = C} algD eq-read-ignore
+  eq-read-ignore-ok ρ tt = refl
+
+
+    -- read >>= write ≡ pure ()   
+  eq-read-write : Equation Full ⊤ FV
+  eq-read-write = (λ _ → op (i₂ (i₂ (fread (λ s → op (i₂ (i₂ (fwrite s (pure tv)))))))))
+                ≐ (λ _ → pure tv)
+
+  eq-read-write-ok : respects {C = C} algD eq-read-write
+  eq-read-write-ok ρ tt = refl
+
+  -- read >>= λ s. read >>= f s ≡ read >>= λ s. f s s
+  eq-read-read : Equation Full ⊤ FV
+  eq-read-read = (λ _ → op (i₂ (i₂ (fread (λ s → op (i₂ (i₂ (fread (λ s' → pure (kr2 s s'))))))))))
+              ≐ (λ _ → op (i₂ (i₂ (fread (λ s → pure (kr2 s s))))))
+
+  eq-read-read-ok : respects {C = C} algD eq-read-read
+  eq-read-read-ok ρ tt = refl
+
+>>>>>>> 3e55f8f55afb16074c6b76bc21240fc21d912e21
 
   ----------------------------------------------------------------------
   -- Operationsformer (pladsholdere i eq7-9 og tensor-lovene)
