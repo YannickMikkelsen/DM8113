@@ -121,8 +121,6 @@ module FileAlg (S : Set) (A : Set₁) where
   eq-write-read-ok : respects {C = C} algD eq-write-read
   eq-write-read-ok ρ s = refl
 
-<<<<<<< HEAD
-=======
   -- read ; t ≡ t     
   eq-read-ignore : Equation Full ⊤ FV
   eq-read-ignore = (λ _ → op (i₂ (i₂ (fread (λ _ → pure tv)))))
@@ -148,7 +146,6 @@ module FileAlg (S : Set) (A : Set₁) where
   eq-read-read-ok : respects {C = C} algD eq-read-read
   eq-read-read-ok ρ tt = refl
 
->>>>>>> 3e55f8f55afb16074c6b76bc21240fc21d912e21
 
   ----------------------------------------------------------------------
   -- Operationsformer (pladsholdere i eq7-9 og tensor-lovene)
@@ -238,7 +235,7 @@ module FileExample where
   program1 =
     op (i₂ (i₂ (fopen "f"
       (op (i₁ (catch {A = ⊤}
-        (λ j → op (i₂ (i₂ (fwrite "GodMornign" (op (i₁ throw))))))
+        (λ j → op (i₂ (i₂ (fwrite "GoodMorning" (op (i₁ throw))))))
         (pure tt₁)
         (λ _ → op (i₂ (i₂ (fclose (pure tt₁)))))))
       >>= λ _ →
@@ -251,7 +248,7 @@ module FileExample where
   program2 =
     op (i₂ (i₂ (fopen "f"
       (op (i₁ (catch {A = ⊤}
-        (λ j → op (i₂ (i₂ (fwrite "GodMornign" (op (i₁ (end j tt)))))))
+        (λ j → op (i₂ (i₂ (fwrite "GoodMorning" (op (i₁ (end j tt)))))))
         (pure tt₁)
         (λ _ → op (i₂ (i₂ (fclose (pure tt₁)))))))
       >>= λ _ →
