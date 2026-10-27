@@ -120,6 +120,7 @@ module FileAlg (S : Set) (A : Set₁) where
   eq-write-read-ok : respects {C = C} algD eq-write-read
   eq-write-read-ok ρ s = refl
 
+
   ----------------------------------------------------------------------
   -- Operationsformer (pladsholdere i eq7-9 og tensor-lovene)
 
@@ -204,33 +205,33 @@ module FileExample where
   runF t = fold genF algD t (λ s m → (nothing , s) , m)
 
   -- throw i kroppen: handleren kører, filen lukkes aldrig
-  leak : Free Full ⊤₁
-  leak =
+  program1 : Free Full ⊤₁
+  program1 =
     op (i₂ (i₂ (fopen "f"
       (op (i₁ (catch {A = ⊤}
-        (λ j → op (i₂ (i₂ (fwrite "x" (op (i₁ throw))))))
+        (λ j → op (i₂ (i₂ (fwrite "GodMornign" (op (i₁ throw))))))
         (pure tt₁)
         (λ _ → op (i₂ (i₂ (fclose (pure tt₁)))))))
       >>= λ _ →
-        op (i₂ (i₂ (fopen "f"
+        op (i₂ (i₂ (fopen "ff"
           (op (i₂ (i₂ (fwrite "hello"
             (op (i₂ (i₂ (fclose (pure tt₁))))))))))))))))
 
   -- end j tt i kroppen: fortsættelsen k kører, filen lukkes
-  good : Free Full ⊤₁
-  good =
+  program2 : Free Full ⊤₁
+  program2 =
     op (i₂ (i₂ (fopen "f"
       (op (i₁ (catch {A = ⊤}
-        (λ j → op (i₂ (i₂ (fwrite "x" (op (i₁ (end j tt)))))))
+        (λ j → op (i₂ (i₂ (fwrite "GodMornign" (op (i₁ (end j tt)))))))
         (pure tt₁)
         (λ _ → op (i₂ (i₂ (fclose (pure tt₁)))))))
       >>= λ _ →
-        op (i₂ (i₂ (fopen "f"
+        op (i₂ (i₂ (fopen "ff"
           (op (i₂ (i₂ (fwrite "hello"
             (op (i₂ (i₂ (fclose (pure tt₁))))))))))))))))
 
-  test-leak : runF leak 0 "init" ≡ ((just tt₁ , 0) , "hello")
+  test-leak : runF program1 0 "init" ≡ ((just tt₁ , 0) , "hello")
   test-leak = refl
 
-  test-good : runF good 0 "init" ≡ ((just tt₁ , 0) , "hello")
+  test-good : runF program2 0 "init" ≡ ((just tt₁ , 0) , "hello")
   test-good = refl
