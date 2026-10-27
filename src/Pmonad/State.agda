@@ -58,12 +58,7 @@ module StateLaws (S : Set) where
   eqPP : ∀ {Σ : Set₁ → Set₁} → Equation (Σst + Σ) (S × S) SVar
   eqPP = (λ{ (s1 , s2) → put' s1 (put' s2 (pure tv)) }) ≐ (λ{ (_ , s2) → put' s2 (pure tv) })
   -- Bærertype: tilstandstransformeren
-  -- St : Set₁ → Set₁
-  -- St R = S → R × S
 
-  -- algSt : ∀ {R} → Σst (St R) → St R
-  -- algSt (opr getP k)      = λ s → k s s
-  -- algSt (opr (putP s') k) = λ _ → k tt s'
   St : (Σ : Set₁ → Set₁) → Set₁ → Set₁
   St Σ R = S → Free Σ (R × S)
 
