@@ -121,8 +121,6 @@ module FileAlg (S : Set) (A : Set₁) where
   eq-write-read-ok : respects {C = C} algD eq-write-read
   eq-write-read-ok ρ s = refl
 
-<<<<<<< HEAD
-=======
   -- read ; t ≡ t     
   eq-read-ignore : Equation Full ⊤ FV
   eq-read-ignore = (λ _ → op (i₂ (i₂ (fread (λ _ → pure tv)))))
@@ -148,7 +146,6 @@ module FileAlg (S : Set) (A : Set₁) where
   eq-read-read-ok : respects {C = C} algD eq-read-read
   eq-read-read-ok ρ tt = refl
 
->>>>>>> 3e55f8f55afb16074c6b76bc21240fc21d912e21
 
   ----------------------------------------------------------------------
   -- Operationsformer (pladsholdere i eq7-9 og tensor-lovene)
@@ -221,8 +218,7 @@ module FileAlg (S : Set) (A : Set₁) where
     module PutFwrite (s : S) (t : String) = G.Comm ⊤ ⊤ (oPut s) (nPut s) (oFwrite t) (nFwrite t) (λ u → refl)
     module PutFclose (s : S)              = G.Comm ⊤ ⊤ (oPut s) (nPut s) oFclose      nFclose     (λ u → refl)
 
-------------------------------------------------------------------------
--- Tests: rå træer, ingen opr / smart constructors
+
 
 module FileExample where
   open FileAlg ℕ ⊤₁          -- S = ℕ, A = ⊤₁
@@ -233,7 +229,7 @@ module FileExample where
   runF : Free Full ⊤₁ → D
   runF t = fold genF algD t (λ s m → (nothing , s) , m)
 
-  -- throw i kroppen: handleren kører, filen lukkes aldrig
+  -- throw i kroppen
   program1 : Free Full ⊤₁
   program1 =
     op (i₂ (i₂ (fopen "f"
@@ -246,7 +242,7 @@ module FileExample where
           (op (i₂ (i₂ (fwrite "hello"
             (op (i₂ (i₂ (fclose (pure tt₁))))))))))))))))
 
-  -- end j tt i kroppen: fortsættelsen k kører, filen lukkes
+  -- end j tt i kroppen
   program2 : Free Full ⊤₁
   program2 =
     op (i₂ (i₂ (fopen "f"
