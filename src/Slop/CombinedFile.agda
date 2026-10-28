@@ -234,7 +234,7 @@ module FileExample where
   program1 =
     op (i₂ (i₂ (fopen "f"
       (op (i₁ (catch {A = ⊤}
-        (λ j → op (i₂ (i₂ (fwrite "GodMornign" (op (i₁ throw))))))
+        (λ j → op (i₂ (i₂ (fwrite "GoodMorning" (op (i₁ throw))))))
         (pure tt₁)
         (λ _ → op (i₂ (i₂ (fclose (pure tt₁)))))))
       >>= λ _ →
@@ -247,7 +247,7 @@ module FileExample where
   program2 =
     op (i₂ (i₂ (fopen "f"
       (op (i₁ (catch {A = ⊤}
-        (λ j → op (i₂ (i₂ (fwrite "GodMornign" (op (i₁ (end j tt)))))))
+        (λ j → op (i₂ (i₂ (fwrite "GoodMorning" (op (i₁ (end j tt)))))))
         (pure tt₁)
         (λ _ → op (i₂ (i₂ (fclose (pure tt₁)))))))
       >>= λ _ →
