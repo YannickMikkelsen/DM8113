@@ -221,7 +221,7 @@ module FileAlg (S : Set) (A : Set₁) where
 
 
 module FileExample where
-  open FileAlg ℕ ⊤₁          -- S = ℕ, A = ⊤₁
+  open FileAlg ℕ ⊤₁   
 
   genF : ⊤₁ → C
   genF x = λ hd s m → (just x , s) , m
