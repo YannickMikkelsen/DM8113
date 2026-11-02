@@ -192,6 +192,9 @@ module FileAlg (S : Set) (A : Set₁) where
     eq2-ok : respects {C = C} algD (G.eq2 X)
     eq2-ok = G.eq2-ok X
 
+    eq-end-through-ok : ∀ X W → respects {C = C} algD (G.eq-end-through X W)
+    eq-end-through-ok = G.eq-end-through-ok
+
     -- eq3 (kræver WF), eq4, eq5, eq6
     open G.Bind X Y V public
 

@@ -52,6 +52,14 @@ module Gen (Σ : Set₁ → Set₁) ⦃ fΣ : Functor Σ ⦄ (L : Lawful Σ)
   eq2-ok : ∀ X → respects {C = C} algE (eq2 X)
   eq2-ok X ρ t = refl
 
+  -- catch (λ _ → end i x) h k ≡ end i x    i ≠ j, dvs. j forekommer ikke i kroppen (her udtrykt ved λ _ → ...)
+  eq-end-through : (X W : Set) → Equation S (J W × W) (CVar X)
+  eq-end-through X W = (λ (i , x) → op (i₁ (catch (λ _ → op (i₁ (end i x))) (pure hv) λ a → pure (kv a)))) ≐ λ (i , x) → op (i₁ (end i x))
+
+  eq-end-through-ok : ∀ X W → respects {C = C} algE (eq-end-through X W)
+  eq-end-through-ok X W ρ t = refl
+
+
   ----------------------------------------------------------------------
   -- Hjælpelemmaer
 
