@@ -1,8 +1,9 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 module Slopp.PExcGen where
 
 open import Data.Unit using (⊤; tt)
 open import Level using (suc; zero; Lift; lift)
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym; trans)
 open import Data.Product using (_×_; _,_)
 open import Slopp.PHexc
 open import Slopp.Lawful
@@ -112,7 +113,7 @@ module Gen {I : Set}
 
   -- Bemærk: loven gælder ikke for alle p (jf. WF-eksemplet), så beviset er et hul.
   eq3-ok : ∀ X → respects {Σ = S} {C = C} {j = j₀} algE (eq3 X)
-  eq3-ok X ρ p = {!!}
+  eq3-ok X ρ p = {! hell !}
 
   ----------------------------------------------------------------------
   -- Bind-lovene. p, h, k er Free-termer i Γ; fortsættelsen f er variablen kw
@@ -161,17 +162,38 @@ module Gen {I : Set}
 
 
 
-  Natural : (B : Set) (n : I)
-          → (∀ {K : I → I → Set₁} {j} → (B → K n j) → Σ K i₀ j) → Set₂
-  Natural B n o =
+  -- Operationer og naturlighed med vilkårligt start- og slutindeks
+
+  OpT : Set → I → I → Set₂
+  OpT B s n = ∀ {K : I → I → Set₁} {j} → (B → K n j) → Σ K s j
+
+  NaturalAt : (B : Set) (s n : I) → OpT B s n → Set₂
+  NaturalAt B s n o =
     ∀ {K L : I → I → Set₁} {j}
       (f : ∀ {a} → K a j → L a j) (c : B → K n j)
     → fmap {X = K} {Y = L} {j = j} {j' = j} f (o {K} {j} c)
       ≡ o {L} {j} (λ b → f {n} (c b))
- 
+
+  -- fold-o: foldT ρ algE (o c) ≡ αD (o (λ b → foldT ρ algE (c b) hd))
+  module Op {B : Set} {s n : I} (o : OpT B s n) (nat : NaturalAt B s n o) where
+
+    fold-o : ∀ {V : I → I → Set₁}
+               (ρ : ∀ {a} → V a j₀ → C a j₀)
+               (c : B → Term S V n j₀) (hd : (x : I) → D x j₀)
+           → foldT {C = C} ρ algE (opT (i₂ (o {Term S V} {j₀} c))) hd
+             ≡ αD (o {D} {j₀} (λ b → foldT {C = C} ρ algE (c b) hd))
+    fold-o {V} ρ c hd =
+      trans (cong αD (fmap-∘ {X = Term S V} {Y = C} {Z = D}
+                             {j = j₀} {j' = j₀} {j'' = j₀}
+                             (λ {a} m → m hd)
+                             (λ {a} t → foldT {C = C} ρ algE t)
+                             (o {Term S V} {j₀} c)))
+            (cong αD (nat {K = Term S V} {L = D} {j = j₀}
+                          (λ {a} t → foldT {C = C} ρ algE t hd) c))
+
   module Inter (B : Set) (n₀ : I)
-               (o : ∀ {K : I → I → Set₁} {j} → (B → K n₀ j) → Σ K i₀ j)
-               (nat : Natural B n₀ o)
+               (o : OpT B i₀ n₀)
+               (nat : NaturalAt B i₀ n₀ o)
                (X : Set) where
  
     -- beregningsvariable: h (fra enhver s), k' (fra m₀), m ℓ b (fra n₀), f b (fra n₀)
@@ -193,8 +215,20 @@ module Gen {I : Set}
                                                    (λ a → var (kk a))))))))
  
     -- kræver nat (to gange, under funext over hd)
+    module O = Op {B} {i₀} {n₀} o nat
+
     eq-Catch-Op-ok : respects {Σ = S} {C = C} {j = j₀} algE eq-Catch-Op
-    eq-Catch-Op-ok ρ tt = {!!}
+    eq-Catch-Op-ok ρ tt = funext (λ hd →
+      trans
+        (O.fold-o ρ (λ b → var (mm (λ x → ρ (kk x) hd) b))
+                    (λ s → ρ {s} hh hd))
+        (sym (O.fold-o ρ
+               (λ b → opT (i₁ (catch {i = n₀} {k = m₀} {A = X}
+                                 (λ ℓ → var (mm ℓ b))
+                                 (λ s → var hh)
+                                 (λ a → var (kk a)))))
+               hd)))
+
  
     -- Throw-Op: throw >>= (λ _ → o f) ≡ throw
     eq-Throw-Op : Equation S ⊤ MVar i₀ j₀
@@ -216,4 +250,46 @@ module Gen {I : Set}
  
     eq-End-Op-ok : ∀ W → respects {Σ = S} {C = C} {j = j₀} algE (eq-End-Op W)
     eq-End-Op-ok W ρ (ℓ , x) = refl
-  -- TODO: Inter og Comm tages senere.
+
+  ----------------------------------------------------------------------
+  -- Comm: to operationer, der kommuterer
+  --   o₁ (λ a₁ → o₂ (λ a₂ → k a₁ a₂)) ≡ o₂' (λ a₂ → o₁' (λ a₁ → k a₁ a₂))
+  -- i₀ --o₁--> p₁ --o₂--> q   og   i₀ --o₂'--> p₂ --o₁'--> q
+  castOp : ∀ {B s n n'} → n ≡ n' → OpT B s n → OpT B s n'
+  castOp refl o = o
+
+  castNat : ∀ {B s n n'} {o : OpT B s n} (e : n ≡ n')
+          → NaturalAt B s n o → NaturalAt B s n' (castOp e o)
+  castNat refl nat = nat
+
+  module Comm (B₁ B₂ : Set) (p₁ p₂ q : I)
+              (o₁  : OpT B₁ i₀ p₁) (n₁  : NaturalAt B₁ i₀ p₁ o₁)
+              (o₂  : OpT B₂ p₁ q)  (n₂  : NaturalAt B₂ p₁ q  o₂)
+              (o₂' : OpT B₂ i₀ p₂) (n₂' : NaturalAt B₂ i₀ p₂ o₂')
+              (o₁' : OpT B₁ p₂ q)  (n₁' : NaturalAt B₁ p₂ q  o₁')
+              (commD : ∀ (u : B₁ → B₂ → D q j₀)
+                     → αD (o₁  {D} {j₀} (λ a₁ → αD (o₂  {D} {j₀} (λ a₂ → u a₁ a₂))))
+                     ≡ αD (o₂' {D} {j₀} (λ a₂ → αD (o₁' {D} {j₀} (λ a₁ → u a₁ a₂))))) where
+
+    module O₁  = Op o₁  n₁
+    module O₂  = Op o₂  n₂
+    module O₂' = Op o₂' n₂'
+    module O₁' = Op o₁' n₁'
+
+    data KVar : I → I → Set₁ where
+      kk : B₁ → B₂ → KVar q j₀
+
+    eqComm : Equation S ⊤ KVar i₀ j₀
+    eqComm =
+      (λ _ → opT (i₂ (o₁ (λ a₁ → opT (i₂ (o₂ (λ a₂ → var (kk a₁ a₂))))))))
+      ≐ (λ _ → opT (i₂ (o₂' (λ a₂ → opT (i₂ (o₁' (λ a₁ → var (kk a₁ a₂))))))))
+
+    eqComm-ok : respects {Σ = S} {C = C} {j = j₀} algE eqComm
+    eqComm-ok ρ tt = funext (λ hd →
+      trans (O₁.fold-o ρ (λ a₁ → opT (i₂ (o₂ (λ a₂ → var (kk a₁ a₂))))) hd)
+      (trans (cong (λ u → αD (o₁ {D} {j₀} u))
+                   (funext (λ a₁ → O₂.fold-o ρ (λ a₂ → var (kk a₁ a₂)) hd)))
+      (trans (commD (λ a₁ a₂ → ρ (kk a₁ a₂) hd))
+      (trans (cong (λ u → αD (o₂' {D} {j₀} u))
+                   (funext (λ a₂ → sym (O₁'.fold-o ρ (λ a₁ → var (kk a₁ a₂)) hd))))
+             (sym (O₂'.fold-o ρ (λ a₂ → opT (i₂ (o₁' (λ a₁ → var (kk a₁ a₂))))) hd))))))
