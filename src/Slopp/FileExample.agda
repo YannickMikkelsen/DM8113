@@ -25,7 +25,7 @@ injC _ SClosed = Closed
 
 open FileAlg I′ ⊤₁ Closed Closed Open Open
 
-_>>==_ : ∀ {A B : Set₁} {i j} → Free Full A i j → (A → Free Full B j j) → Free Full B i j
+_>>==_ : ∀ {A B : Set₁} {i j k} → Free Full A i j → (A → Free Full B j k) → Free Full B i k
 _>>==_ = _>>=_ ⦃ fFull ⦄
 
 -- det der kommer efter catch (filen er lukket)

@@ -103,17 +103,151 @@ module Gen {I : Set}
   -- Catch-Bind: catch (λ ℓ → p >>= λ x → end ℓ x) (λ s → throw) k' ≡ p >>= k'
   -- (ℓ ∉ p gælder automatisk: p er en værdi i Γ og ℓ er bundet inde i kroppen)
 
-  eq3 : (X : Set) → Equation S (Free S (Lift (suc zero) X) i₀ k₀) (MV X) i₀ j₀
-  eq3 X = (λ p →
-              opT (i₁ (catch {k = k₀} {A = X}
-                             (λ ℓ → bindT p (λ { (lift x) → opT (i₁ (end ℓ x)) }))
-                             (λ s → opT (i₁ throw))
-                             (λ a → var (kw a)))))
-          ≐ (λ p → bindT p (λ { (lift x) → var (kw x) }))
+----------------------------------------------------------------------
+  -- Hjælpere
 
-  -- Bemærk: loven gælder ikke for alle p (jf. WF-eksemplet), så beviset er et hul.
+  cong₃ : ∀ {A B C′ E : Set₁} (f : A → B → C′ → E) {x y : A} {u v : B} {s t : C′}
+        → x ≡ y → u ≡ v → s ≡ t → f x u s ≡ f y v t
+  cong₃ f refl refl refl = refl
+
+  ap : ((s : I) → D s j₀) → ∀ {a} → C a j₀ → D a j₀
+  ap hd m = m hd
+
+  ----------------------------------------------------------------------
+  -- NoPure / WF. Handleren er nu (s : I) → …, og alle børn har samme slutindeks j.
+
+  {-# NO_POSITIVITY_CHECK #-}
+  data NoPure {R : Set₁} : ∀ {i j} → Free S R i j → Set₁ where
+    np-throw : ∀ {i j} → NoPure {i = i} {j = j} (op (i₁ throw))
+    np-end   : ∀ {k j} {W : Set} (ℓ : J k W) (y : W)
+             → NoPure {i = k} {j = j} (op (i₁ (end ℓ y)))
+    np-op    : ∀ {i j} (x : Σ (Free S R) i j) → All NoPure x → NoPure (op (i₂ x))
+    np-catch : ∀ {i j k} {W : Set}
+                 (p : J k W → Free S R i j) (h : (s : I) → Free S R s j)
+                 (c : W → Free S R k j)
+             → (∀ ℓ → NoPure (p ℓ)) → (∀ s → NoPure (h s)) → (∀ a → NoPure (c a))
+             → NoPure (op (i₁ (catch p h c)))
+
+  {-# NO_POSITIVITY_CHECK #-}
+  data WF {R : Set₁} : ∀ {i j} → Free S R i j → Set₁ where
+    wf-pure  : ∀ {i} (y : R) → WF {i = i} {j = i} (pure y)
+    wf-throw : ∀ {i j} → WF {i = i} {j = j} (op (i₁ throw))
+    wf-end   : ∀ {k j} {W : Set} (ℓ : J k W) (y : W)
+             → WF {i = k} {j = j} (op (i₁ (end ℓ y)))
+    wf-op    : ∀ {i j} (x : Σ (Free S R) i j) → All WF x → WF (op (i₂ x))
+    wf-catch : ∀ {i j k} {W : Set}
+                 (p : J k W → Free S R i j) (h : (s : I) → Free S R s j)
+                 (c : W → Free S R k j)
+             → (∀ ℓ → NoPure (p ℓ)) → (∀ s → WF (h s)) → (∀ a → WF (c a))
+             → WF (op (i₁ (catch p h c)))
+
+  ----------------------------------------------------------------------
+  -- fold gennem en Σ-operation under bindT
+
+  fold-op₂ : ∀ {V : I → I → Set₁} {R : Set₁} {i k : I}
+               (ρ : ∀ {a} → V a j₀ → C a j₀) (f : R → Term S V k j₀)
+               (x : Σ (Free S R) i k) (hd : (s : I) → D s j₀)
+           → foldT {C = C} ρ algE (bindT {V = V} (op (i₂ x)) f) hd
+           ≡ αD (fmap {X = Free S R} {Y = D} {j = k} {j' = j₀}
+                   (λ {a} t → foldT {C = C} ρ algE (bindT {V = V} t f) hd) x)
+  fold-op₂ {V} {R} {i} {k} ρ f x hd = cong αD
+    (trans (fmap-∘ {X = Term S V} {Y = C} {Z = D} {j = j₀} {j' = j₀} {j'' = j₀}
+                   (λ {a} m → m hd) (λ {a} t → foldT {C = C} ρ algE t)
+                   (fmap {X = Free S R} {Y = Term S V} {j = k} {j' = j₀}
+                         (λ {a} m → bindT {V = V} m f) x))
+           (fmap-∘ {X = Free S R} {Y = Term S V} {Z = D} {j = k} {j' = j₀} {j'' = j₀}
+                   (λ {a} t → foldT {C = C} ρ algE t hd)
+                   (λ {a} m → bindT {V = V} m f) x))
+
+  ----------------------------------------------------------------------
+  -- NoPure-led: fortsættelsen kører aldrig i kroppen
+
+  {-# TERMINATING #-}
+  np-bind : ∀ {V : I → I → Set₁} {R : Set₁} {i k : I}
+              (ρ : ∀ {a} → V a j₀ → C a j₀) (f₁ f₂ : R → Term S V k j₀)
+              {q : Free S R i k}
+          → NoPure q
+          → foldT {C = C} ρ algE (bindT {V = V} q f₁)
+          ≡ foldT {C = C} ρ algE (bindT {V = V} q f₂)
+  np-bind ρ f₁ f₂ np-throw      = refl
+  np-bind ρ f₁ f₂ (np-end ℓ y)  = refl
+  np-bind ρ f₁ f₂ (np-op x nx)  =
+    funext (λ hd →
+      trans (fold-op₂ ρ f₁ x hd)
+      (trans (cong αD (all-cong NoPure
+                        (λ {a} t → foldT {C = C} ρ algE (bindT t f₁) hd)
+                        (λ {a} t → foldT {C = C} ρ algE (bindT t f₂) hd)
+                        x nx
+                        (λ {a} t nt → cong (ap hd) (np-bind ρ f₁ f₂ nt))))
+             (sym (fold-op₂ ρ f₂ x hd))))
+  np-bind ρ f₁ f₂ (np-catch b h c nb nh nc) =
+    funext (λ hd →
+      cong₃ (λ Bv Hv Kv → Bv (λ x → Kv x hd) (λ s → Hv s hd))
+            (funext (λ ℓ → np-bind ρ f₁ f₂ (nb ℓ)))
+            (funext (λ s → np-bind ρ f₁ f₂ (nh s)))
+            (funext (λ a → np-bind ρ f₁ f₂ (nc a))))
+
+  ----------------------------------------------------------------------
+  -- Catch-Bind: catch (λ ℓ → p >>= end ℓ) (λ s → throw) k' ≡ p >>= k'   (p veldannet)
+
+  record WFTerm (X : Set) : Set₁ where
+    constructor wft
+    field
+      term : Free S (Lift (suc zero) X) i₀ k₀
+      wf   : WF term
+
+  -- "p >>= end ℓ" og "p >>= k'" som fortsættelser
+  K1 : (X : Set) → (X → D k₀ j₀) → Lift (suc zero) X → Term S (MV X) k₀ j₀
+  K1 X J′ (lift x) = opT (i₁ (end {k = k₀} {A = X} J′ x))
+
+  K2 : (X : Set) → Lift (suc zero) X → Term S (MV X) k₀ j₀
+  K2 X (lift x) = var (kw x)
+
+  eq3 : (X : Set) → Equation S (WFTerm X) (MV X) i₀ j₀
+  eq3 X = (λ{ (wft p _) →
+              opT (i₁ (catch {k = k₀} {A = X}
+                             (λ ℓ → bindT p (K1 X ℓ))
+                             (λ s → opT (i₁ throw))
+                             (λ a → var (kw a)))) })
+          ≐ (λ{ (wft p _) → bindT p (K2 X) })
+
+  {-# TERMINATING #-}
+  main : ∀ (X : Set) (ρ : ∀ {a} → MV X a j₀ → C a j₀)
+           {i : I} {p : Free S (Lift (suc zero) X) i k₀}
+       → WF p → ∀ (hd : (s : I) → D s j₀)
+       → foldT {C = C} ρ algE (bindT p (K1 X (λ a → ρ (kw a) hd))) hd
+       ≡ foldT {C = C} ρ algE (bindT p (K2 X)) hd
+  main X ρ (wf-pure (lift y)) hd = refl
+  main X ρ wf-throw           hd = refl
+  main X ρ (wf-end ℓ y)       hd = refl
+  main X ρ (wf-op x wx)       hd =
+    trans (fold-op₂ ρ (K1 X (λ a → ρ (kw a) hd)) x hd)
+    (trans (cong αD (all-cong WF
+                      (λ {a} t → foldT {C = C} ρ algE (bindT t (K1 X (λ a′ → ρ (kw a′) hd))) hd)
+                      (λ {a} t → foldT {C = C} ρ algE (bindT t (K2 X)) hd)
+                      x wx
+                      (λ {a} t wt → main X ρ wt hd)))
+           (sym (fold-op₂ ρ (K2 X) x hd)))
+  main X ρ (wf-catch b h c nb wh wk) hd =
+    cong₃ (λ Bv Jv Hv → Bv Jv Hv)
+          (funext (λ ℓ → np-bind ρ (K1 X (λ a → ρ (kw a) hd)) (K2 X) (nb ℓ)))
+          (funext (λ a → main X ρ (wk a) hd))
+          (funext (λ s → main X ρ (wh s) hd))
+
   eq3-ok : ∀ X → respects {Σ = S} {C = C} {j = j₀} algE (eq3 X)
-  eq3-ok X ρ p = {! hell !}
+  eq3-ok X ρ (wft p wf) = funext (λ hd → main X ρ wf hd)
+
+  -- eq3 : (X : Set) → Equation S (Free S (Lift (suc zero) X) i₀ k₀) (MV X) i₀ j₀
+  -- eq3 X = (λ p →
+  --             opT (i₁ (catch {k = k₀} {A = X}
+  --                            (λ ℓ → bindT p (λ { (lift x) → opT (i₁ (end ℓ x)) }))
+  --                            (λ s → opT (i₁ throw))
+  --                            (λ a → var (kw a)))))
+  --         ≐ (λ p → bindT p (λ { (lift x) → var (kw x) }))
+
+  -- -- Bemærk: loven gælder ikke for alle p (jf. WF-eksemplet), så beviset er et hul.
+  -- eq3-ok : ∀ X → respects {Σ = S} {C = C} {j = j₀} algE (eq3 X)
+  -- eq3-ok X ρ p = {!  !}
 
   ----------------------------------------------------------------------
   -- Bind-lovene. p, h, k er Free-termer i Γ; fortsættelsen f er variablen kw

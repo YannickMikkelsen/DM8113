@@ -43,7 +43,7 @@ InjF I s J = I → SFile s → J
 --   fclose : getOC i ≡ Open → inj     → M i (inj i SClosed) ⊤
 --
 -- K i j er fortsættelsen. Den starter i operationens post-indeks og
--- slutter i j (programmets slutindeks).
+-- slutter i tilstanden j (programmets slutindeks).
 
 data FileOpS {I : Set} (K : I → I → Set₁) : I → I → Set₁ where
   fopen  : ∀ {i j} (getOC : ProjF I) → getOC i ≡ Closed

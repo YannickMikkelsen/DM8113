@@ -27,8 +27,8 @@ open Functor ⦃...⦄
 
 {-# TERMINATING #-}
 _>>=_ : ∀ {l} {I : Set} {Σ : (I → I → Set l) → (I → I → Set l)} {A B : Set l}
-        ⦃ _ : Functor Σ ⦄ {i j}
-      → Free Σ A i j → (A → Free Σ B j j) → Free Σ B i j
+        ⦃ _ : Functor Σ ⦄ {i j k}
+      → Free Σ A i j → (A → Free Σ B j k) → Free Σ B i k
 pure x >>= f = f x
 op s   >>= f = op (fmap (λ m → m >>= f) s)
 
