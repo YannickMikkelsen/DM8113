@@ -1,13 +1,5 @@
 module Slopp.StateSig where
 
--- Parameterized state-signatur i to-indeks-stilen. IKKE typechecket.
---
---   look : proj → M i i a                     (læser komponent a af indekset)
---   set  : inj → (val : a) → M i (inj i val) ⊤ (skriver komponent a)
---
--- ANTAGELSE (jeg har ikke set dine definitioner):
---   ProjL I a   = I → a
---   InjL I a J  = I → a → J
 
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
 open import Slopp.PHexc

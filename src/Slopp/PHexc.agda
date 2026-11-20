@@ -144,46 +144,71 @@ hexc {Σ' = Σ'} {A = A} m =
 ------------------------------------------------------------------------
 -- Ligninger (Definition 2.1)
 
-{-# NO_POSITIVITY_CHECK #-}
-data Term {I : Set} (Σ : (I → I → Set₁) → (I → I → Set₁))
-          (V : I → I → Set₁) : I → I → Set₁ where
-  var : ∀ {i j} → V i j → Term Σ V i j
-  opT : ∀ {i j} → Σ (Term Σ V) i j → Term Σ V i j
 
-{-# TERMINATING #-}
-foldT : ∀ {I} {Σ : (I → I → Set₁) → (I → I → Set₁)} {V C : I → I → Set₁}
-          ⦃ _ : Functor Σ ⦄ {j : I}
-      → (∀ {i} → V i j → C i j)
-      → (∀ {i} → Σ C i j → C i j)
-      → ∀ {i} → Term Σ V i j → C i j
-foldT ρ alg (var v) = ρ v
-foldT ρ alg (opT s) = alg (fmap (foldT ρ alg) s)
-
--- substitution: bind af et Free-program ind i en term med variable
-{-# TERMINATING #-}
-bindT : ∀ {I} {Σ : (I → I → Set₁) → (I → I → Set₁)} {V : I → I → Set₁}
-          ⦃ _ : Functor Σ ⦄ {A : Set₁} {i k j : I}
-      → Free Σ A i k → (A → Term Σ V k j) → Term Σ V i j
-bindT (pure x) f = f x
-bindT (op s)   f = opT (fmap (λ m → bindT m f) s)
+------------------------------------------------------------------------
+-- Ligninger (Definition 2.1) -- kun med Free, ingen Term
 
 infix 4 _≐_
-data Equation {lΓ I} (Σ : (I → I → Set₁) → (I → I → Set₁))
-              (Γ : Set lΓ) (V : I → I → Set₁) (i j : I) : Set (suc zero ⊔ lΓ) where
-  _≐_ : (Γ → Term Σ V i j) → (Γ → Term Σ V i j) → Equation Σ Γ V i j
+data Equation {lΓ} {I : Set} (Σ : (I → I → Set₁) → (I → I → Set₁))
+              (Γ : Set lΓ) (A : Set₁) (i j : I) : Set (suc zero ⊔ lΓ) where
+  _≐_ : (Γ → Free Σ A i j) → (Γ → Free Σ A i j) → Equation Σ Γ A i j
 
-lhs rhs : ∀ {lΓ I} {Σ : (I → I → Set₁) → (I → I → Set₁)} {Γ : Set lΓ}
-            {V : I → I → Set₁} {i j : I}
-        → Equation Σ Γ V i j → Γ → Term Σ V i j
+lhs rhs : ∀ {lΓ} {I : Set} {Σ : (I → I → Set₁) → (I → I → Set₁)} {Γ : Set lΓ}
+            {A : Set₁} {i j : I}
+        → Equation Σ Γ A i j → Γ → Free Σ A i j
 lhs (l ≐ r) = l
 rhs (l ≐ r) = r
 
-respects : ∀ {lΓ I} {Σ : (I → I → Set₁) → (I → I → Set₁)} {Γ : Set lΓ}
-             {V C : I → I → Set₁} {i j : I} ⦃ _ : Functor Σ ⦄
+-- En algebra (C, gen, alg) respekterer ligningen, hvis de to sider
+-- foldes til det samme, for enhver tolkning gen af generatorerne.
+respects : ∀ {lΓ} {I : Set} {Σ : (I → I → Set₁) → (I → I → Set₁)} {Γ : Set lΓ}
+             {A : Set₁} {C : I → I → Set₁} {i j : I} ⦃ _ : Functor Σ ⦄
          → (∀ {a} → Σ C a j → C a j)
-         → Equation Σ Γ V i j → Set (suc zero ⊔ lΓ)
-respects {V = V} {C = C} {j = j} alg eq =
-  ∀ (ρ : ∀ {a} → V a j → C a j) t →
-    foldT ρ alg (lhs eq t) ≡ foldT ρ alg (rhs eq t)
+         → Equation Σ Γ A i j → Set (suc zero ⊔ lΓ)
+respects {A = A} {C = C} {j = j} alg eq =
+  ∀ (gen : A → C j j) t →
+    fold gen alg (lhs eq t) ≡ fold gen alg (rhs eq t)
+
+-- {-# NO_POSITIVITY_CHECK #-}
+-- data Term {I : Set} (Σ : (I → I → Set₁) → (I → I → Set₁))
+--           (V : I → I → Set₁) : I → I → Set₁ where
+--   var : ∀ {i j} → V i j → Term Σ V i j
+--   opT : ∀ {i j} → Σ (Term Σ V) i j → Term Σ V i j
+
+-- {-# TERMINATING #-}
+-- foldT : ∀ {I} {Σ : (I → I → Set₁) → (I → I → Set₁)} {V C : I → I → Set₁}
+--           ⦃ _ : Functor Σ ⦄ {j : I}
+--       → (∀ {i} → V i j → C i j)
+--       → (∀ {i} → Σ C i j → C i j)
+--       → ∀ {i} → Term Σ V i j → C i j
+-- foldT ρ alg (var v) = ρ v
+-- foldT ρ alg (opT s) = alg (fmap (foldT ρ alg) s)
+
+-- -- substitution: bind af et Free-program ind i en term med variable
+-- {-# TERMINATING #-}
+-- bindT : ∀ {I} {Σ : (I → I → Set₁) → (I → I → Set₁)} {V : I → I → Set₁}
+--           ⦃ _ : Functor Σ ⦄ {A : Set₁} {i k j : I}
+--       → Free Σ A i k → (A → Term Σ V k j) → Term Σ V i j
+-- bindT (pure x) f = f x
+-- bindT (op s)   f = opT (fmap (λ m → bindT m f) s)
+
+-- infix 4 _≐_
+-- data Equation {lΓ I} (Σ : (I → I → Set₁) → (I → I → Set₁))
+--               (Γ : Set lΓ) (V : I → I → Set₁) (i j : I) : Set (suc zero ⊔ lΓ) where
+--   _≐_ : (Γ → Term Σ V i j) → (Γ → Term Σ V i j) → Equation Σ Γ V i j
+
+-- lhs rhs : ∀ {lΓ I} {Σ : (I → I → Set₁) → (I → I → Set₁)} {Γ : Set lΓ}
+--             {V : I → I → Set₁} {i j : I}
+--         → Equation Σ Γ V i j → Γ → Term Σ V i j
+-- lhs (l ≐ r) = l
+-- rhs (l ≐ r) = r
+
+-- respects : ∀ {lΓ I} {Σ : (I → I → Set₁) → (I → I → Set₁)} {Γ : Set lΓ}
+--              {V C : I → I → Set₁} {i j : I} ⦃ _ : Functor Σ ⦄
+--          → (∀ {a} → Σ C a j → C a j)
+--          → Equation Σ Γ V i j → Set (suc zero ⊔ lΓ)
+-- respects {V = V} {C = C} {j = j} alg eq =
+--   ∀ (ρ : ∀ {a} → V a j → C a j) t →
+--     foldT ρ alg (lhs eq t) ≡ foldT ρ alg (rhs eq t)
 
 
