@@ -12,6 +12,7 @@ open import Slop.Lawful
 open import Slop.StateSig
 open import Slop.FHAlg
 open import Slop.ExcGen
+open import Slop.EquivComp
 open Functor ⦃...⦄
 
 module FileAlg (S : Set) (A : Set₁) where
@@ -93,6 +94,8 @@ module FileAlg (S : Set) (A : Set₁) where
 
   eqPP-ok : respects {C = C} algD eqPP
   eqPP-ok ρ (s1 , s2) = refl
+
+  
 
   ----------------------------------------------------------------------
   -- Fil-love

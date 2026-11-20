@@ -6,7 +6,7 @@ module Slopp.FHAlg where
 open import Data.String  using (String)
 open import Data.Product using (_×_; _,_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
-open import Slopp.PHexc
+open import Slopp.PHexc2
 open import Slopp.Lawful
 open Functor ⦃...⦄
 

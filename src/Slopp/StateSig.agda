@@ -10,7 +10,7 @@ module Slopp.StateSig where
 --   InjL I a J  = I → a → J
 
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
-open import Slopp.PHexc
+open import Slopp.PHexc2
 open import Slopp.Lawful
 open Functor ⦃...⦄
 

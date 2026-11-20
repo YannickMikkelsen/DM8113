@@ -1,7 +1,7 @@
 module Slopp.Lawful where
 
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
-open import Slopp.PHexc
+open import Slopp.PHexc2
 open Functor ⦃...⦄
 
 -- Det Gen skal vide om en signatur-funktor Σ udover at den er en Functor:

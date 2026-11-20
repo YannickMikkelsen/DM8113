@@ -8,7 +8,6 @@ open import Slop.Hexc
 open import Slop.Lawful
 open Functor ⦃...⦄
 
--- Gen er nu parametriseret over en vilkårlig funktor Σ (ikke Opr P Ar)
 module Gen (Σ : Set₁ → Set₁) ⦃ fΣ : Functor Σ ⦄ (L : Lawful Σ)
            (D : Set₁) (αD : Σ D → D) where
 

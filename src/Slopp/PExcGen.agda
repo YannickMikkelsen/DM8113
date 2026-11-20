@@ -1,4 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 module Slopp.PExcGen where
 
 open import Data.Unit using (⊤; tt)
@@ -7,6 +6,7 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym;
 open import Data.Product using (_×_; _,_)
 open import Slopp.PHexc
 open import Slopp.Lawful
+-- open import Slopp.PEquivComp
 open Functor ⦃...⦄
 
 -- Exc-ligningerne for algebraen algE, over signaturen Opr P Ar

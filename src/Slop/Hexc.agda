@@ -144,6 +144,8 @@ lhs rhs : ∀ {lΓ : Level} {Σ : Set₁ → Set₁} {Γ : Set lΓ} {V : Set₁}
 lhs (l ≐ r) = l
 rhs (l ≐ r) = r
 
+
+
 -- Definition 2.1
 respects : ∀ {lΓ : Level} {Σ : Set₁ → Set₁} {Γ : Set lΓ} {V C : Set₁} ⦃ _ : Functor Σ ⦄ → (Σ C → C) → Equation Σ Γ V → Set (suc zero ⊔ lΓ)
 respects {V = V} {C = C} alg eq =
