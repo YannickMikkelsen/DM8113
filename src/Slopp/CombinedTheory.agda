@@ -8,7 +8,7 @@ module Slopp.CombinedTheory where
  
 open import Data.String  using (String)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
- 
+
 open import Slopp.PHexc
 open import Slopp.Lawful
 open import Slopp.StateSig
@@ -145,13 +145,13 @@ module CombinedTheory (I : Set) (A : Set₁) (i₀ j₀ k₀ m₀ : I) where
   StateFile = StateAx ⊗⟨ CommSF ⟩ FileAx
  
   stateFileModel : Models {Σ = Full} ⦃ fFull ⦄ StateFile {C = C} {j₀ = j₀} algD
-  stateFileModel = ⊗-model ⦃ fFull ⦄ stateModel fileModel commSFModel
+  stateFileModel = ⊗-model ⦃ fFull ⦄ StateAx FileAx CommSF stateModel fileModel commSFModel
  
   ----------------------------------------------------------------------
   -- Den kombinerede teori: Exc lagt ovenpå tensor-produktet af state og fil
  
   CombAx : Theory Full
   CombAx = E.ExcAx ∪ StateFile
- 
+
   combModel : Models {Σ = Full} ⦃ fFull ⦄ CombAx {C = C} {j₀ = j₀} algD
-  combModel = ∪-model ⦃ fFull ⦄ E.excModel stateFileModel
+  combModel = ∪-model ⦃ fFull ⦄ E.ExcAx StateFile E.excModel stateFileModel

@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+-- {-# OPTIONS --allow-unsolved-metas #-}
 module Slopp.PExcGen where
 
 open import Data.Unit using (⊤; tt)

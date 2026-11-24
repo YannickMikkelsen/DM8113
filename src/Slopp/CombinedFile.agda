@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+-- {-# OPTIONS --allow-unsolved-metas #-}
 module Slopp.CombinedFile where
 
 -- Parameterized udgave: state + fil kombineres, og Gen (Exc-delen) lægges
