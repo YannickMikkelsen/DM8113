@@ -37,25 +37,25 @@ module EquivalentComputations
 
   infix 4 _~_
 
-  data _~_ {A : Set₁} : ∀ {i j : I} → Free Σ A i j → Free Σ A i j → Set₂ where
-    ~refl  : ∀ {i j} {c : Free Σ A i j} → c ~ c
+  data _~_ : ∀ {A : Set₁} {i j : I} → Free Σ A i j → Free Σ A i j → Set₂ where
+    ~refl  : ∀ {A i j} {c : Free Σ A i j} → c ~ c
+    ~sym   : ∀ {A i j} {c d : Free Σ A i j} → c ~ d → d ~ c
+    ~trans : ∀ {A i j} {c d e : Free Σ A i j} → c ~ d → d ~ e → c ~ e
 
-    ~sym   : ∀ {i j} {c d : Free Σ A i j} → c ~ d → d ~ c
+    -- C: kongruens med bind
+    ~cong  : ∀ {B A : Set₁} {i j l} {m m' : Free Σ B i j}
+              {k k' : B → Free Σ A j l}
+          → m ~ m' → (∀ x → k x ~ k' x)
+          → (m >>= k) ~ (m' >>= k')
 
-    ~trans : ∀ {i j} {c d e : Free Σ A i j} → c ~ d → d ~ e → c ~ e
-
-    ~cong  : ∀ {i j j' : I} (o : Σ (Free Σ A) i j) (k k' : ∀ {a} → Free Σ A a j → Free Σ A a j')
-           → (∀ {a} (x : Free Σ A a j) → k x ~ k' x)
-           → op (fmap k o) ~ op (fmap k' o)
-
-    ~eq    : ∀ {Γ B : Set₁} {i j m : I} {e : Equation Σ Γ B i j}
-           → T e → (g : Γ) (k : B → Free Σ A j m)
-           → (lhs e g >>= k) ~ (rhs e g >>= k)
-    ~eq₀   : ∀ {Γ B : Set₁} {i j : I} {e : Equation Σ Γ A i j}
+    -- Eq: ingen k
+    ~eq    : ∀ {Γ B : Set₁} {i j} {e : Equation Σ Γ B i j}
+          → T e → (g : Γ) → lhs e g ~ rhs e g
+    ~eq₀   : ∀ {Γ B : Set₁} {i j : I} {e : Equation Σ Γ B i j}
            → T e → (g : Γ) → lhs e g ~ rhs e g
 
     ~bind  : ∀ {B : Set₁} {i j l} {m m' : Free Σ B i j}
-               {k k' : B → Free Σ A j l}
+               {k k' : B → Free Σ B j l}
            → m ~ m' → (∀ x → k x ~ k' x)
            → (m >>= k) ~ (m' >>= k')
 ------------------------------------------------------------------------
