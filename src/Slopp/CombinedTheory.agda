@@ -1,11 +1,5 @@
 module Slopp.CombinedTheory where
  
--- Tre teorier (state, fil, Exc), tensor-produktet StateAx ⊗ FileAx og den
--- kombinerede teori ExcAx ∪ (StateAx ⊗ FileAx) over Full. Alle aksiomer er ligninger fra CombinedFile
--- (kun Free). Sammenhængsbetingelserne (coh osv.) er felter i konstruktørerne:
--- loven er kun et aksiom for sammenhængende proj/inj-par.
--- IKKE typechecket.
- 
 open import Data.String  using (String)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
@@ -17,12 +11,12 @@ open import Slopp.PExcGen
 open import Slopp.Theory
 open import Slopp.CombinedFile
  
-module CombinedTheory (I : Set) (A : Set₁) (i₀ j₀ k₀ m₀ : I) where
+module CombinedTheory (I : Set) (A : Set₁) where
  
-  open FileAlg I A i₀ j₀ k₀ m₀
+  open FileAlg I A
  
   -- Exc-teorien fra Gen, instantieret med Sg og D, αD
-  module E = ExcTheory Sg ⦃ fSg ⦄ lawfulSg i₀ j₀ k₀ m₀ D αD
+  module E = ExcTheory Sg ⦃ fSg ⦄ lawfulSg D αD
  
   ----------------------------------------------------------------------
   -- State-teorien
@@ -34,26 +28,28 @@ module CombinedTheory (I : Set) (A : Set₁) (i₀ j₀ k₀ m₀ : I) where
       inj  : InjL I a I
  
   module SL (c : SCtx) = StateLaws {SCtx.a c} (SCtx.proj c) (SCtx.inj c)
- 
+
   data StateAx : ∀ {i j : I} {Γ Q : Set₁} → Equation Full Γ Q i j → Set₁ where
-    ax-look-discard : ∀ (c : SCtx) (i : I) → StateAx (SL.eqLookDiscard c i)
-    ax-set-look     : ∀ (c : SCtx) (i : I)
-                    → (∀ st s → SCtx.proj c (SCtx.inj c st s) ≡ s)
-                    → StateAx (SL.eqSetLook c i)
-    ax-look-set     : ∀ (c : SCtx) (i : I)
-                    → (SCtx.inj c i (SCtx.proj c i) ≡ i)
-                    → StateAx (SL.eqLookSet c i)
-    ax-look-look    : ∀ (c : SCtx) (i : I) → StateAx (SL.eqLookLook c i)
-    ax-set-set      : ∀ (c : SCtx) (i : I)
-                    → (∀ st s₁ s₂ → SCtx.inj c (SCtx.inj c st s₁) s₂ ≡ SCtx.inj c st s₂)
-                    → StateAx (SL.eqSetSet c i)
+    ax-look-discard : ∀ (c : SCtx) (i : I)
+                    → StateAx (SL.eqLookDiscard c i)
+    ax-set-look     : ∀ (c : SCtx) (i : I) (s : SCtx.a c)
+                    → SCtx.proj c (SCtx.inj c i s) ≡ s
+                    → StateAx (SL.eqSetLook c i s)
+    ax-look-look    : ∀ (c : SCtx) (i : I)
+                    → StateAx (SL.eqLookLook c i)
+    ax-set-set      : ∀ (c : SCtx) (i : I) (s₁ s₂ : SCtx.a c)
+                      (coh : SCtx.inj c (SCtx.inj c i s₁) s₂ ≡ SCtx.inj c i s₂)
+                    → StateAx (SL.eqSetSet c i s₁ s₂ coh)
+    ax-look-set     : ∀ (c : SCtx) (i j : I)
+                    → SCtx.inj c i (SCtx.proj c i) ≡ i
+                    → StateAx (SL.eqLookSet c i j)
  
-  stateModel : Models {Σ = Full} ⦃ fFull ⦄ StateAx {C = C} {j₀ = j₀} algD
-  stateModel _ (ax-look-discard c i)       = SL.eqLookDiscard-ok c i
-  stateModel _ (ax-set-look c i coh)       = SL.eqSetLook-ok c i coh
-  stateModel _ (ax-look-set c i coh-i)     = SL.eqLookSet-ok c i coh-i
-  stateModel _ (ax-look-look c i)          = SL.eqLookLook-ok c i
-  stateModel _ (ax-set-set c i coh)        = SL.eqSetSet-ok c i coh
+  stateModel : Models {Σ = Full} ⦃ fFull ⦄ StateAx {C = C} algD
+  stateModel _ (ax-look-discard c i)        = SL.eqLookDiscard-ok c i
+  stateModel _ (ax-set-look c i s coh)      = SL.eqSetLook-ok c i s coh
+  stateModel _ (ax-look-look c i)           = SL.eqLookLook-ok c i
+  stateModel _ (ax-set-set c i s₁ s₂ coh)   = SL.eqSetSet-ok c i s₁ s₂ coh
+  stateModel _ (ax-look-set c i j coh)      = SL.eqLookSet-ok c i j coh
  
   ----------------------------------------------------------------------
   -- Fil-teorien
@@ -62,27 +58,28 @@ module CombinedTheory (I : Set) (A : Set₁) (i₀ j₀ k₀ m₀ : I) where
     ax-open-close   : ∀ (i : I) (getOCₒ getOC꜀ : ProjF I)
                         (pₒ : getOCₒ i ≡ Closed) (injₒ : InjF I Open I)
                         (p꜀ : getOC꜀ (injₒ i SOpen) ≡ Open) (inj꜀ : InjF I Closed I)
-                    → (inj꜀ (injₒ i SOpen) SClosed ≡ i)
-                    → FileAx (FileLaws.eqOpenClose i getOCₒ getOC꜀ pₒ injₒ p꜀ inj꜀)
-    ax-write-write  : ∀ (i : I) (getOC : ProjF I) (p : getOC i ≡ Open)
-                    → FileAx (FileLaws.eqWriteWrite i getOC p)
-    ax-write-read   : ∀ (i : I) (getOC : ProjF I) (p : getOC i ≡ Open)
-                    → FileAx (FileLaws.eqWriteRead i getOC p)
+                        (f : String)
+                        (coh : inj꜀ (injₒ i SOpen) SClosed ≡ i)
+                    → FileAx (FileLaws.eqOpenClose i getOCₒ getOC꜀ pₒ injₒ p꜀ inj꜀ f coh)
+    ax-write-write  : ∀ (i : I) (getOC : ProjF I) (p : getOC i ≡ Open) (s₁ s₂ : String)
+                    → FileAx (FileLaws.eqWriteWrite i getOC p s₁ s₂)
+    ax-write-read   : ∀ (i : I) (getOC : ProjF I) (p : getOC i ≡ Open) (s : String)
+                    → FileAx (FileLaws.eqWriteRead i getOC p s)
     ax-read-discard : ∀ (i : I) (getOC : ProjF I) (p : getOC i ≡ Open)
                     → FileAx (FileLaws.eqReadDiscard i getOC p)
     ax-read-write   : ∀ (i : I) (getOC : ProjF I) (p : getOC i ≡ Open)
                     → FileAx (FileLaws.eqReadWrite i getOC p)
     ax-read-read    : ∀ (i : I) (getOC : ProjF I) (p : getOC i ≡ Open)
                     → FileAx (FileLaws.eqReadRead i getOC p)
- 
-  fileModel : Models {Σ = Full} ⦃ fFull ⦄ FileAx {C = C} {j₀ = j₀} algD
-  fileModel _ (ax-open-close i gₒ g꜀ pₒ injₒ p꜀ inj꜀ coh) =
-    FileLaws.eqOpenClose-ok i gₒ g꜀ pₒ injₒ p꜀ inj꜀ coh
-  fileModel _ (ax-write-write i g p)  = FileLaws.eqWriteWrite-ok i g p
-  fileModel _ (ax-write-read i g p)   = FileLaws.eqWriteRead-ok i g p
-  fileModel _ (ax-read-discard i g p) = FileLaws.eqReadDiscard-ok i g p
-  fileModel _ (ax-read-write i g p)   = FileLaws.eqReadWrite-ok i g p
-  fileModel _ (ax-read-read i g p)    = FileLaws.eqReadRead-ok i g p
+
+  fileModel : Models {Σ = Full} ⦃ fFull ⦄ FileAx {C = C} algD
+  fileModel _ (ax-open-close i gₒ g꜀ pₒ injₒ p꜀ inj꜀ f coh) =
+    FileLaws.eqOpenClose-ok i gₒ g꜀ pₒ injₒ p꜀ inj꜀ f coh
+  fileModel _ (ax-write-write i g p s₁ s₂) = FileLaws.eqWriteWrite-ok i g p s₁ s₂
+  fileModel _ (ax-write-read i g p s)      = FileLaws.eqWriteRead-ok i g p s
+  fileModel _ (ax-read-discard i g p)      = FileLaws.eqReadDiscard-ok i g p
+  fileModel _ (ax-read-write i g p)        = FileLaws.eqReadWrite-ok i g p
+  fileModel _ (ax-read-read i g p)         = FileLaws.eqReadRead-ok i g p
  
   ----------------------------------------------------------------------
   -- Kommutationslove mellem state- og fil-operationer.
@@ -128,7 +125,7 @@ module CombinedTheory (I : Set) (A : Set₁) (i₀ j₀ k₀ m₀ : I) where
     ax-put-fclose : ∀ (c : TCtx) (i : I) (v : TCtx.a c) (p : TCtx.getOC c i ≡ Open)
                   → CommSF (TL.eqPutFclose c i v p)
  
-  commSFModel : Models {Σ = Full} ⦃ fFull ⦄ CommSF {C = C} {j₀ = j₀} algD
+  commSFModel : Models {Σ = Full} ⦃ fFull ⦄ CommSF {C = C} algD
   commSFModel _ (ax-get-fopen c i p f)    = TL.eqGetFopen-ok c i p f
   commSFModel _ (ax-get-fread c i p)      = TL.eqGetFread-ok c i p
   commSFModel _ (ax-get-fwrite c i p t)   = TL.eqGetFwrite-ok c i p t
@@ -144,7 +141,7 @@ module CombinedTheory (I : Set) (A : Set₁) (i₀ j₀ k₀ m₀ : I) where
   StateFile : Theory Full
   StateFile = StateAx ⊗⟨ CommSF ⟩ FileAx
  
-  stateFileModel : Models {Σ = Full} ⦃ fFull ⦄ StateFile {C = C} {j₀ = j₀} algD
+  stateFileModel : Models {Σ = Full} ⦃ fFull ⦄ StateFile {C = C}  algD
   stateFileModel = ⊗-model ⦃ fFull ⦄ StateAx FileAx CommSF stateModel fileModel commSFModel
  
   ----------------------------------------------------------------------
@@ -153,5 +150,5 @@ module CombinedTheory (I : Set) (A : Set₁) (i₀ j₀ k₀ m₀ : I) where
   CombAx : Theory Full
   CombAx = E.ExcAx ∪ StateFile
 
-  combModel : Models {Σ = Full} ⦃ fFull ⦄ CombAx {C = C} {j₀ = j₀} algD
+  combModel : Models {Σ = Full} ⦃ fFull ⦄ CombAx {C = C} algD
   combModel = ∪-model ⦃ fFull ⦄ E.ExcAx StateFile E.excModel stateFileModel

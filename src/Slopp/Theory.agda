@@ -1,10 +1,5 @@
 module Slopp.Theory where
 
--- En algebraisk teori over en signatur Σ er en mængde af ligninger.
--- Her er en teori et prædikat på ligninger ("er aksiom"), så en teori
--- kan samles som en induktiv familie. En model er en algebra, der
--- respekterer alle aksiomerne. Alt er udtrykt med Free (ingen Term).
--- IKKE typechecket.
 
 open import Level using (suc; zero)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
@@ -23,13 +18,10 @@ Theory {I} Σ = ∀ {i j : I} {Γ A : Set₁} → Equation Σ Γ A i j → Set�
 
 -- (C, alg) er en model af T, hvis alle aksiomer med slutindeks j₀ respekteres
 Models : ∀ {I : Set} {Σ : (I → I → Set₁) → (I → I → Set₁)} ⦃ _ : Functor Σ ⦄
-           (T : Theory Σ) {C : I → I → Set₁} {j₀ : I}
-       → (∀ {a} → Σ C a j₀ → C a j₀) → Set₂
-Models {I} {Σ} T {C} {j₀} alg =
-  ∀ {i : I} {Γ A : Set₁} (e : Equation Σ Γ A i j₀) → T e → respects alg e
-
-
-
+           (T : Theory Σ) {C : I → I → Set₁}
+       → (∀ {a j} → Σ C a j → C a j) → Set₂
+Models {I} {Σ} T {C} alg =
+  ∀ {i j : I} {Γ A : Set₁} (e : Equation Σ Γ A i j) → T e → respects alg e
 
 module EquivalentComputations
          {I : Set} {Σ : (I → I → Set₁) → (I → I → Set₁)}
@@ -51,13 +43,7 @@ module EquivalentComputations
     -- Eq: ingen k
     ~eq    : ∀ {Γ B : Set₁} {i j} {e : Equation Σ Γ B i j}
           → T e → (g : Γ) → lhs e g ~ rhs e g
-    ~eq₀   : ∀ {Γ B : Set₁} {i j : I} {e : Equation Σ Γ B i j}
-           → T e → (g : Γ) → lhs e g ~ rhs e g
 
-    ~bind  : ∀ {B : Set₁} {i j l} {m m' : Free Σ B i j}
-               {k k' : B → Free Σ B j l}
-           → m ~ m' → (∀ x → k x ~ k' x)
-           → (m >>= k) ~ (m' >>= k')
 ------------------------------------------------------------------------
 
 
@@ -66,8 +52,8 @@ _∪_ : ∀ {I : Set} {Σ : (I → I → Set₁) → (I → I → Set₁)}
 (T₁ ∪ T₂) e = T₁ e ⊎ T₂ e
 
 ∪-model : ∀ {I : Set} {Σ : (I → I → Set₁) → (I → I → Set₁)} ⦃ _ : Functor Σ ⦄
-            (T₁ T₂ : Theory Σ) {C : I → I → Set₁} {j₀ : I}
-            {alg : ∀ {a} → Σ C a j₀ → C a j₀}
+            (T₁ T₂ : Theory Σ) {C : I → I → Set₁}
+            {alg : ∀ {a j} → Σ C a j → C a j}
         → Models T₁ alg → Models T₂ alg → Models (T₁ ∪ T₂) alg
 ∪-model T₁ T₂ m₁ m₂ e (inj₁ t) = m₁ e t
 ∪-model T₁ T₂ m₁ m₂ e (inj₂ t) = m₂ e t
@@ -76,8 +62,8 @@ _⊗⟨_⟩_ : ∀ {I} {Σ : (I → I → Set₁) → (I → I → Set₁)} → 
 T₁ ⊗⟨ Comm ⟩ T₂ = (T₁ ∪ T₂) ∪ Comm
 
 ⊗-model : ∀ {I : Set} {Σ : (I → I → Set₁) → (I → I → Set₁)} ⦃ _ : Functor Σ ⦄
-            (T₁ T₂ Comm : Theory Σ) {C : I → I → Set₁} {j₀ : I}
-            {alg : ∀ {a} → Σ C a j₀ → C a j₀}
+            (T₁ T₂ Comm : Theory Σ) {C : I → I → Set₁}
+            {alg : ∀ {a j} → Σ C a j → C a j}
         → Models T₁ alg → Models T₂ alg → Models Comm alg
         → Models (T₁ ⊗⟨ Comm ⟩ T₂) alg
 ⊗-model T₁ T₂ Comm m₁ m₂ mc =
@@ -88,23 +74,22 @@ T₁ ⊗⟨ Comm ⟩ T₂ = (T₁ ∪ T₂) ∪ Comm
 module ExcTheory {I : Set}
                  (Σ : (I → I → Set₁) → (I → I → Set₁)) ⦃ fΣ : Functor Σ ⦄
                  (L : Lawful Σ)
-                 (i₀ j₀ k₀ m₀ : I)
-                 (D : I → I → Set₁)
-                 (αD : ∀ {a} → Σ D a j₀ → D a j₀) where
+                 (D : I → Set₁)
+                 (αD : ∀ {a j} → Σ (λ i _ → D i) a j → D a) where
 
-  open Gen Σ L i₀ j₀ k₀ m₀ D αD
+  open Gen Σ L D αD
 
   data ExcAx : ∀ {i j : I} {Γ A : Set₁} → Equation S Γ A i j → Set₁ where
-    ax-catch-end    : ∀ X   → ExcAx (eq-Catch-End X)
-    ax-catch-throw  : ∀ X   → ExcAx (eq-Catch-Throw X)
-    ax-end-through  : ∀ X   → ExcAx (eq-end-through X)
-    ax-catch-bind   : ∀ X   → ExcAx (eq3 X)
-    ax-bind-end     : ∀ X W → ExcAx (eq-Bind-lovene X W)
-    ax-throw-bind   : ∀ X   → ExcAx (eq-Throw-Bind X)
-    ax-catch-distr  : ∀ X W → ExcAx (eq-Catch-Distr X W)
+    ax-catch-end    : ∀ {i j}     X   → ExcAx (eq-Catch-End {i} {j} X)
+    ax-catch-throw  : ∀ {i k j}   X   → ExcAx (eq-Catch-Throw {i} {k} {j} X)
+    ax-end-through  : ∀ {i k j}   X   → ExcAx (eq-end-through {i} {k} {j} X)
+    ax-catch-bind   : ∀ {i k j}   X   → ExcAx (eq3 {i} {k} {j} X)
+    ax-bind-end     : ∀ {i k j}   X W → ExcAx (eq-Bind-lovene {i} {k} {j} X W)
+    ax-throw-bind   : ∀ {i k j}   X   → ExcAx (eq-Throw-Bind {i} {k} {j} X)
+    ax-catch-distr  : ∀ {i k m j} X W → ExcAx (eq-Catch-Distr {i} {k} {m} {j} X W)
 
   -- algE er en model af Exc-teorien: beviserne er de -ok-lemmaer, vi allerede har
-  excModel : Models {Σ = S} ExcAx {C = C} {j₀ = j₀} algE
+  excModel : Models {Σ = S} ExcAx {C = C} algE
   excModel _ (ax-catch-end X)     = eq-Catch-End-ok X
   excModel _ (ax-catch-throw X)   = eq-Catch-Throw-ok X
   excModel _ (ax-end-through X)   = eq-end-through-ok X

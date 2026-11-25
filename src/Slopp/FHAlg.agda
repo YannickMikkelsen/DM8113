@@ -1,8 +1,5 @@
 module Slopp.FHAlg where
 
--- Parameterized udgave af FHAlg i to-indeks-stilen (Free Σ A i j).
--- IKKE typechecket.
-
 open import Data.String  using (String)
 open import Data.Product using (_×_; _,_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
@@ -10,15 +7,7 @@ open import Slopp.PHexc
 open import Slopp.Lawful
 open Functor ⦃...⦄
 
-------------------------------------------------------------------------
--- Filens tilstand i indekset
---
--- ANTAGELSE (jeg har ikke set dine definitioner): indekset I har en
--- filkomponent, som kan læses med getOC og skrives med inj.
---   FStatus      : Open | Closed
---   SFile s      : singleton, SOpen : SFile Open, SClosed : SFile Closed
---   ProjF I      = I → FStatus                  (getOC)
---   InjF I s J   = I → SFile s → J              (inj)
+
 
 data FStatus : Set where
   Open Closed : FStatus
@@ -33,17 +22,6 @@ ProjF I = I → FStatus
 InjF : Set → FStatus → Set → Set
 InjF I s J = I → SFile s → J
 
-------------------------------------------------------------------------
--- Signatur. Alle argumenter står eksplicit: projektionen, beviset for
--- filens tilstand og injektionen. Typerne svarer til Figure 1:
---
---   fopen  : getOC i ≡ Closed → inj → String → M i (inj i SOpen) ⊤
---   fread  : getOC i ≡ Open           → M i i String
---   fwrite : getOC i ≡ Open → String  → M i i ⊤
---   fclose : getOC i ≡ Open → inj     → M i (inj i SClosed) ⊤
---
--- K i j er fortsættelsen. Den starter i operationens post-indeks og
--- slutter i tilstanden j (programmets slutindeks).
 
 data FileOpS {I : Set} (K : I → I → Set₁) : I → I → Set₁ where
   fopen  : ∀ {i j} (getOC : ProjF I) → getOC i ≡ Closed
@@ -69,11 +47,6 @@ instance
   fFile : ∀ {I} → Functor (FileOpS {I})
   fFile = record { fmap = fmapFile }
 
-------------------------------------------------------------------------
--- Algebra. Tilstanden er kun filens indhold, som før. Indeksene og
--- bevisargumenterne er rent statiske: de findes i typerne, men ikke i
--- kørslen. Bæreren er derfor konstant i i og j.
-
 HF : ∀ {I : Set} → Set₁ → I → I → Set₁
 HF R _ _ = String → R × String
 
@@ -83,8 +56,6 @@ algFile (fread _ _ k)     m = k m m
 algFile (fwrite _ _ s k)  m = k s          -- overskriver
 algFile (fclose _ _ _ k)  m = k m
 
-------------------------------------------------------------------------
--- Lawful (til Gen): All, fmap-∘ og all-cong
 
 AllFile : ∀ {I} {X : I → I → Set₁} {i j}
         → (∀ {a} → X a j → Set₁) → FileOpS X i j → Set₁
