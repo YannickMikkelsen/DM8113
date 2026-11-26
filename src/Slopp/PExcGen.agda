@@ -49,6 +49,9 @@ module Gen {I : Set}
 
   open Lawful L
 
+
+
+
   -- D som konstant familie (slutindekset bruges ikke)
   Dc : I → I → Set₁
   Dc i _ = D i
@@ -61,6 +64,14 @@ module Gen {I : Set}
 
   C : I → I → Set₁
   C i j = ((s : I) → D s) → D i
+
+    -- Hjælpere
+  cong₃ : ∀ {A B C′ E : Set₁} (f : A → B → C′ → E) {x y : A} {u v : B} {s t : C′}
+        → x ≡ y → u ≡ v → s ≡ t → f x u s ≡ f y v t
+  cong₃ f refl refl refl = refl
+
+  ap : ((s : I) → D s) → ∀ {a j} → C a j → D a
+  ap hd m = m hd
 
   algE : ∀ {i j} → S C i j → C i j                -- nu for alle j
   algE {i} (i₁ throw)     = λ hd → hd i
@@ -80,7 +91,45 @@ module Gen {I : Set}
   m >>=S f = _>>=_ {Σ = S} m f
 
   -- Lovlighed af S = Exc J + Σ: Σ er givet, Exc J skal bevises
-  postulate lawfulExc : Lawful (Exc J)   -- TODO: bevis (som for Fire, Abort, Opr)
+  AllExc : ∀ {X : I → I → Set₁} {i j}
+         → (∀ {a} → X a j → Set₁) → Exc J X i j → Set₁
+  AllExc Q throw         = Lift (suc zero) ⊤
+  AllExc Q (end l x)     = Lift (suc zero) ⊤
+  AllExc Q (catch p h k) = (∀ ℓ → Q (p ℓ)) × (∀ s → Q (h s)) × (∀ a → Q (k a))
+
+  fmap-∘Exc : ∀ {X Y Z : I → I → Set₁} {j j' j''}
+              (g : ∀ {i} → Y i j' → Z i j'')
+              (f : ∀ {i} → X i j → Y i j')
+              {i} (x : Exc J X i j)
+            → fmap {F = Exc J} {X = Y} {Y = Z} {j = j'} {j' = j''} g
+                (fmap {F = Exc J} {X = X} {Y = Y} {j = j} {j' = j'} f x)
+              ≡ fmap {F = Exc J} {X = X} {Y = Z} {j = j} {j' = j''} (λ {a} v → g (f v)) x
+  fmap-∘Exc g f throw         = refl
+  fmap-∘Exc g f (end l x)     = refl
+  fmap-∘Exc g f (catch p h k) = refl
+
+  all-congExc : ∀ {X Y : I → I → Set₁} {j j'}
+                (Q : ∀ {a} → X a j → Set₁)
+                (h₁ h₂ : ∀ {i} → X i j → Y i j')
+                {i} (x : Exc J X i j)
+              → AllExc {X = X} {i} {j} Q x
+              → (∀ {a} (v : X a j) → Q {a} v → h₁ {a} v ≡ h₂ {a} v)
+              → fmap {F = Exc J} {X = X} {Y = Y} {j = j} {j' = j'} h₁ x
+                ≡ fmap {F = Exc J} {X = X} {Y = Y} {j = j} {j' = j'} h₂ x
+  all-congExc Q h₁ h₂ throw         _              c = refl
+  all-congExc Q h₁ h₂ (end l x)     _              c = refl
+  all-congExc Q h₁ h₂ (catch p h k) (ap , ah , ak) c =
+    cong₃ catch
+      (funext (λ ℓ → c (p ℓ) (ap ℓ)))
+      (funext (λ s → c (h s) (ah s)))
+      (funext (λ a → c (k a) (ak a)))
+
+  lawfulExc : Lawful (Exc J)
+  lawfulExc = record
+    { All      = AllExc
+    ; fmap-∘   = fmap-∘Exc
+    ; all-cong = all-congExc
+    }
 
   lawfulS : Lawful S
   lawfulS = lawful+ lawfulExc L
@@ -133,13 +182,6 @@ module Gen {I : Set}
   eq-end-through-ok X gen ((ℓ , x) , hd , kt) = refl
 
   ----------------------------------------------------------------------
-  -- Hjælpere
-  cong₃ : ∀ {A B C′ E : Set₁} (f : A → B → C′ → E) {x y : A} {u v : B} {s t : C′}
-        → x ≡ y → u ≡ v → s ≡ t → f x u s ≡ f y v t
-  cong₃ f refl refl refl = refl
-
-  ap : ((s : I) → D s) → ∀ {a j} → C a j → D a
-  ap hd m = m hd
 
   ----------------------------------------------------------------------
   -- NoPure / WF. Handleren er (s : I) → …, og alle børn har samme slutindeks j.

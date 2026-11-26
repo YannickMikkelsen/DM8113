@@ -2,14 +2,16 @@ module Slopp.FileExample where
 
 open import Data.Maybe using (just; nothing)
 open import Data.Unit using (⊤; tt)
-open import Data.Product using (_×_; _,_)
+open import Data.Product using (_×_; _,_; proj₁; proj₂)
 open import Data.Sum using (inj₁; inj₂)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Data.Bool using (Bool; true; false)
 open import Slopp.PHexc
 open import Slopp.FHAlg
 open import Slopp.CombinedFile
 open import Slopp.CombinedTheory
 open import Slopp.Theory
+open import Slopp.StateSig
 
 
 I′ : Set
@@ -94,3 +96,4 @@ equiv-writes =
     ~cong {k = λ _ → op (i₂ (i₂ (fclose getOC′ refl injC (pure tt₁))))}
       (~eq (inj₂ (inj₁ (inj₂ (ax-write-write Open getOC′ refl "first" "second")))) tt₁)
           (λ _ → ~refl))
+
